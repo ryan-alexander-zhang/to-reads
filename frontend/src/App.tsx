@@ -53,27 +53,6 @@ interface ReadLaterEntry {
   saved_at: string;
 }
 
-interface FavoriteEntry {
-  id: number;
-  item_id: number;
-  feed_id: number;
-  feed_name: string;
-  category_id: number | null;
-  category: string | null;
-  title: string;
-  link: string;
-  summary: string;
-  published_at: string | null;
-  tags: string[];
-  saved_at: string;
-}
-
-const parseTags = (value: string) =>
-  value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-
 export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [feeds, setFeeds] = useState<Feed[]>([]);
@@ -86,13 +65,8 @@ export default function App() {
   const [feedCategory, setFeedCategory] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
   const [refreshingFeedId, setRefreshingFeedId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"latest" | "readLater" | "favorites">("latest");
+  const [activeTab, setActiveTab] = useState<"latest" | "readLater">("latest");
   const [readLaterEntries, setReadLaterEntries] = useState<ReadLaterEntry[]>([]);
-  const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
-  const [tagDrafts, setTagDrafts] = useState<Record<number, string>>({});
-  const [favoriteTagDrafts, setFavoriteTagDrafts] = useState<Record<number, string>>({});
-  const [favoriteTagFilter, setFavoriteTagFilter] = useState("all");
-  const [favoriteQuery, setFavoriteQuery] = useState("");
 
   const groupedFeeds = useMemo(() => {
     const map = new Map<string, Feed[]>();
@@ -110,38 +84,12 @@ export default function App() {
   const readLaterItemIds = useMemo(() => new Set(readLaterEntries.map((entry) => entry.item_id)), [
     readLaterEntries,
   ]);
-  const favoriteItemIds = useMemo(() => new Set(favorites.map((entry) => entry.item_id)), [favorites]);
-
-  const favoriteTags = useMemo(() => {
-    const tags = new Set<string>();
-    favorites.forEach((entry) => entry.tags.forEach((tag) => tags.add(tag)));
-    return Array.from(tags);
-  }, [favorites]);
-
-  const filteredFavorites = useMemo(() => {
-    const normalizedQuery = favoriteQuery.trim().toLowerCase();
-    return favorites.filter((entry) => {
-      if (favoriteTagFilter !== "all" && !entry.tags.includes(favoriteTagFilter)) {
-        return false;
-      }
-      if (!normalizedQuery) {
-        return true;
-      }
-      return (
-        entry.title.toLowerCase().includes(normalizedQuery) ||
-        entry.summary.toLowerCase().includes(normalizedQuery) ||
-        entry.feed_name.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [favorites, favoriteQuery, favoriteTagFilter]);
 
   const totalPages = Math.max(1, Math.ceil(itemsMeta.total / itemsMeta.pageSize));
   const activeCountLabel =
     activeTab === "latest"
       ? `${itemsMeta.total} 条`
-      : activeTab === "readLater"
-        ? `${readLaterEntries.length} 条`
-        : `${favorites.length} 条`;
+      : `${readLaterEntries.length} 条`;
 
   const fetchJson = async <T,>(url: string, options?: RequestInit): Promise<T | null> => {
     const response = await fetch(url, options);
@@ -184,15 +132,10 @@ export default function App() {
     setReadLaterEntries(Array.isArray(data) ? data : []);
   };
 
-  const loadFavorites = async () => {
-    const data = await fetchJson<FavoriteEntry[]>(`${API_BASE}/api/favorites`);
-    setFavorites(Array.isArray(data) ? data : []);
-  };
-
   const loadAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadCategories(), loadFeeds(), loadReadLater(), loadFavorites()]);
+      await Promise.all([loadCategories(), loadFeeds(), loadReadLater()]);
       await loadItems(itemsMeta.page, itemsMeta.pageSize, selectedCategory);
     } finally {
       setLoading(false);
@@ -273,33 +216,6 @@ export default function App() {
     await loadReadLater();
   };
 
-  const handleAddFavorite = async (itemId: number) => {
-    const tags = parseTags(tagDrafts[itemId] ?? "");
-    await fetch(`${API_BASE}/api/favorites`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ item_id: itemId, tags }),
-    });
-    setTagDrafts((prev) => ({ ...prev, [itemId]: "" }));
-    await loadFavorites();
-  };
-
-  const handleUpdateFavoriteTags = async (itemId: number) => {
-    const tags = parseTags(favoriteTagDrafts[itemId] ?? "");
-    await fetch(`${API_BASE}/api/favorites/${itemId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags }),
-    });
-    setFavoriteTagDrafts((prev) => ({ ...prev, [itemId]: "" }));
-    await loadFavorites();
-  };
-
-  const handleRemoveFavorite = async (itemId: number) => {
-    await fetch(`${API_BASE}/api/favorites/${itemId}`, { method: "DELETE" });
-    await loadFavorites();
-  };
-
   const handleCategoryChange = (category: number | "all") => {
     setSelectedCategory(category);
     setItemsMeta((prev) => ({ ...prev, page: 1 }));
@@ -312,7 +228,7 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-semibold">To-Reads RSS 阅读器</h1>
             <p className="text-sm text-slate-400">
-              聚合 RSS / Atom / JSON Feed，在稍后再读与收藏夹中管理摘要。
+              聚合 RSS / Atom / JSON Feed，在稍后再读中管理摘要。
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -474,13 +390,6 @@ export default function App() {
                 >
                   稍后再读
                 </Button>
-                <Button
-                  size="sm"
-                  variant={activeTab === "favorites" ? "default" : "outline"}
-                  onClick={() => setActiveTab("favorites")}
-                >
-                  收藏夹
-                </Button>
               </div>
               <div className="text-sm text-slate-400">
                 {activeCountLabel}
@@ -553,7 +462,6 @@ export default function App() {
                         >
                           {readLaterItemIds.has(item.id) ? "已加入稍后再读" : "稍后再读"}
                         </Button>
-                        {favoriteItemIds.has(item.id) && <Badge className="bg-amber-500/20 text-amber-200">已收藏</Badge>}
                       </div>
                     </CardContent>
                   </Card>
@@ -592,110 +500,7 @@ export default function App() {
                       </a>
                       <p className="text-sm text-slate-300">{entry.summary || "暂无摘要"}</p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          className="max-w-xs"
-                          placeholder="标签，用逗号分隔"
-                          value={tagDrafts[entry.item_id] ?? ""}
-                          onChange={(event) =>
-                            setTagDrafts((prev) => ({ ...prev, [entry.item_id]: event.target.value }))
-                          }
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddFavorite(entry.item_id)}
-                          disabled={favoriteItemIds.has(entry.item_id)}
-                        >
-                          {favoriteItemIds.has(entry.item_id) ? "已收藏" : "收藏"}
-                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => handleRemoveReadLater(entry.item_id)}>
-                          移除
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {activeTab === "favorites" && (
-            <section className="space-y-4">
-              <Card>
-                <CardContent className="flex flex-wrap items-center gap-3 py-4">
-                  <Input
-                    className="max-w-xs"
-                    placeholder="关键词搜索"
-                    value={favoriteQuery}
-                    onChange={(event) => setFavoriteQuery(event.target.value)}
-                  />
-                  <div className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm">
-                    <label className="mb-1 block text-xs text-slate-400">标签筛选</label>
-                    <select
-                      className="w-full bg-transparent text-sm text-slate-100 focus:outline-none"
-                      value={favoriteTagFilter}
-                      onChange={(event) => setFavoriteTagFilter(event.target.value)}
-                    >
-                      <option value="all">全部</option>
-                      {favoriteTags.map((tag) => (
-                        <option key={tag} value={tag}>
-                          {tag}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {filteredFavorites.length === 0 && (
-                <Card>
-                  <CardContent>
-                    <p className="text-sm text-slate-400">暂无收藏内容。</p>
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="space-y-4">
-                {filteredFavorites.map((entry) => (
-                  <Card key={entry.id}>
-                    <CardContent className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className="bg-slate-800">{entry.feed_name}</Badge>
-                        {entry.category && <Badge className="bg-slate-700">{entry.category}</Badge>}
-                        <span className="text-xs text-slate-400">
-                          收藏于 {new Date(entry.saved_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <a
-                        href={entry.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-base font-semibold text-slate-50 hover:underline"
-                      >
-                        {entry.title}
-                      </a>
-                      <p className="text-sm text-slate-300">{entry.summary || "暂无摘要"}</p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {entry.tags.length === 0 && <span className="text-xs text-slate-500">暂无标签</span>}
-                        {entry.tags.map((tag) => (
-                          <Badge key={tag} className="bg-emerald-500/20 text-emerald-200">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          className="max-w-xs"
-                          placeholder="更新标签，用逗号分隔"
-                          value={favoriteTagDrafts[entry.item_id] ?? ""}
-                          onChange={(event) =>
-                            setFavoriteTagDrafts((prev) => ({ ...prev, [entry.item_id]: event.target.value }))
-                          }
-                        />
-                        <Button size="sm" variant="outline" onClick={() => handleUpdateFavoriteTags(entry.item_id)}>
-                          更新标签
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleRemoveFavorite(entry.item_id)}>
                           移除
                         </Button>
                       </div>
