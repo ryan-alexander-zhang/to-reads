@@ -55,6 +55,33 @@ func (s *Server) fetchDueFeeds(ctx context.Context) {
 	}
 }
 
+func (s *Server) fetchAllFeeds(ctx context.Context) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM feeds`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, id := range ids {
+		if err := s.fetchFeedByID(ctx, id); err != nil {
+			log.Printf("fetch feed %d: %v", id, err)
+		}
+	}
+	return nil
+}
+
 func (s *Server) fetchFeedByID(ctx context.Context, id int) error {
 	var feedURL string
 	query := `SELECT url FROM feeds WHERE id = $1`

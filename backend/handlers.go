@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -58,7 +59,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/categories", s.handleCategories)
 	mux.HandleFunc("/api/feeds", s.handleFeeds)
+	mux.HandleFunc("/api/feeds/", s.handleFeedActions)
 	mux.HandleFunc("/api/items", s.handleItems)
+	mux.HandleFunc("/api/refresh", s.handleRefresh)
 
 	return corsMiddleware(jsonMiddleware(mux))
 }
@@ -87,6 +90,46 @@ func (s *Server) handleFeeds(w http.ResponseWriter, r *http.Request) {
 	default:
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 	}
+}
+
+func (s *Server) handleFeedActions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/feeds/")
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	if len(segments) != 2 || segments[1] != "refresh" {
+		respondJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+
+	feedID, err := strconv.Atoi(segments[0])
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid feed id"})
+		return
+	}
+
+	if err := s.fetchFeedByID(r.Context(), feedID); err != nil {
+		respondError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	if err := s.fetchAllFeeds(r.Context()); err != nil {
+		respondError(w, http.StatusInternalServerError, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleItems(w http.ResponseWriter, r *http.Request) {

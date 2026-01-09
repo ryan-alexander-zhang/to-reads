@@ -42,6 +42,7 @@ export default function App() {
   const [feedUrl, setFeedUrl] = useState("");
   const [feedCategory, setFeedCategory] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
+  const [refreshingFeedId, setRefreshingFeedId] = useState<number | null>(null);
 
   const filteredItems = useMemo(() => {
     if (selectedCategory === "all") {
@@ -63,27 +64,31 @@ export default function App() {
     return Array.from(map.entries());
   }, [feeds, categories]);
 
+  const loadData = async () => {
+    const ensureArray = <T,>(data: T[] | null) => (Array.isArray(data) ? data : []);
+    const [categoryRes, feedRes, itemRes] = await Promise.all([
+      fetch(`${API_BASE}/api/categories`),
+      fetch(`${API_BASE}/api/feeds`),
+      fetch(`${API_BASE}/api/items`),
+    ]);
+    if (categoryRes.ok) {
+      const data = (await categoryRes.json()) as Category[] | null;
+      setCategories(ensureArray(data));
+    }
+    if (feedRes.ok) {
+      const data = (await feedRes.json()) as Feed[] | null;
+      setFeeds(ensureArray(data));
+    }
+    if (itemRes.ok) {
+      const data = (await itemRes.json()) as Item[] | null;
+      setItems(ensureArray(data));
+    }
+  };
+
   const loadAll = async () => {
     setLoading(true);
     try {
-      const ensureArray = <T,>(data: T[] | null) => (Array.isArray(data) ? data : []);
-      const [categoryRes, feedRes, itemRes] = await Promise.all([
-        fetch(`${API_BASE}/api/categories`),
-        fetch(`${API_BASE}/api/feeds`),
-        fetch(`${API_BASE}/api/items`),
-      ]);
-      if (categoryRes.ok) {
-        const data = (await categoryRes.json()) as Category[] | null;
-        setCategories(ensureArray(data));
-      }
-      if (feedRes.ok) {
-        const data = (await feedRes.json()) as Feed[] | null;
-        setFeeds(ensureArray(data));
-      }
-      if (itemRes.ok) {
-        const data = (await itemRes.json()) as Item[] | null;
-        setItems(ensureArray(data));
-      }
+      await loadData();
     } finally {
       setLoading(false);
     }
@@ -125,6 +130,26 @@ export default function App() {
     await loadAll();
   };
 
+  const handleRefreshAll = async () => {
+    setLoading(true);
+    try {
+      await fetch(`${API_BASE}/api/refresh`, { method: "POST" });
+      await loadData();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshFeed = async (feedId: number) => {
+    setRefreshingFeedId(feedId);
+    try {
+      await fetch(`${API_BASE}/api/feeds/${feedId}/refresh`, { method: "POST" });
+      await loadData();
+    } finally {
+      setRefreshingFeedId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/40">
@@ -133,7 +158,7 @@ export default function App() {
             <h1 className="text-2xl font-semibold">To-Reads RSS 阅读器</h1>
             <p className="text-sm text-slate-400">聚合 RSS / Atom / JSON Feed，按分类查看最新摘要。</p>
           </div>
-          <Button variant="secondary" size="sm" onClick={loadAll} disabled={loading}>
+          <Button variant="secondary" size="sm" onClick={handleRefreshAll} disabled={loading}>
             {loading ? "刷新中..." : "刷新内容"}
           </Button>
         </div>
@@ -230,9 +255,37 @@ export default function App() {
                       <li key={feed.id} className="rounded-md border border-slate-800 p-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium text-slate-100">{feed.name}</span>
-                          <Badge>
-                            {feed.last_status === "success" ? "已更新" : "待刷新"}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge>
+                              {feed.last_status === "success" ? "已更新" : "待刷新"}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 px-0"
+                              onClick={() => handleRefreshFeed(feed.id)}
+                              disabled={refreshingFeedId === feed.id}
+                              aria-label={`刷新 ${feed.name}`}
+                            >
+                              {refreshingFeedId === feed.id ? (
+                                <span className="text-xs">...</span>
+                              ) : (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                                  <polyline points="22 3 21 8 16 7" />
+                                </svg>
+                              )}
+                            </Button>
+                          </div>
                         </div>
                         <p className="mt-1 text-xs text-slate-400">{feed.url}</p>
                       </li>
