@@ -1,6 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-ENV VITE_API_BASE_URL=/api
+#ENV VITE_API_BASE_URL=/api
+ENV NEXT_PUBLIC_API_BASE_URL=/api
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY . .
