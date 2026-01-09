@@ -54,6 +54,8 @@ func migrate(db *sql.DB) error {
 			summary TEXT,
 			guid TEXT NOT NULL,
 			published_at TIMESTAMPTZ,
+			is_read BOOLEAN NOT NULL DEFAULT FALSE,
+			is_favorite BOOLEAN NOT NULL DEFAULT FALSE,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			UNIQUE(feed_id, guid)
 		)`,
@@ -62,8 +64,13 @@ func migrate(db *sql.DB) error {
 			item_id INTEGER NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		`ALTER TABLE items ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE items ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT FALSE`,
 		`CREATE INDEX IF NOT EXISTS idx_items_published_at ON items(published_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_items_feed_id ON items(feed_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_items_is_read ON items(is_read)`,
+		`CREATE INDEX IF NOT EXISTS idx_items_is_favorite ON items(is_favorite)`,
+		`CREATE INDEX IF NOT EXISTS idx_items_search ON items USING GIN (to_tsvector('simple', title || ' ' || COALESCE(summary, '')))`,
 	}
 
 	for _, statement := range statements {
