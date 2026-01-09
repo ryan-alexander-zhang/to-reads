@@ -57,8 +57,20 @@ func migrate(db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			UNIQUE(feed_id, guid)
 		)`,
+		`CREATE TABLE IF NOT EXISTS read_later (
+			id SERIAL PRIMARY KEY,
+			item_id INTEGER NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS favorites (
+			id SERIAL PRIMARY KEY,
+			item_id INTEGER NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
+			tags TEXT[] NOT NULL DEFAULT '{}',
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_items_published_at ON items(published_at DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_items_feed_id ON items(feed_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_favorites_tags ON favorites USING GIN(tags)`,
 	}
 
 	for _, statement := range statements {

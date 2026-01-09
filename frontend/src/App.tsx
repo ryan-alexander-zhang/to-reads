@@ -32,10 +32,53 @@ interface Item {
   published_at: string | null;
 }
 
+interface ItemsResponse {
+  items: Item[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+interface ReadLaterEntry {
+  id: number;
+  item_id: number;
+  feed_id: number;
+  feed_name: string;
+  category_id: number | null;
+  category: string | null;
+  title: string;
+  link: string;
+  summary: string;
+  published_at: string | null;
+  saved_at: string;
+}
+
+interface FavoriteEntry {
+  id: number;
+  item_id: number;
+  feed_id: number;
+  feed_name: string;
+  category_id: number | null;
+  category: string | null;
+  title: string;
+  link: string;
+  summary: string;
+  published_at: string | null;
+  tags: string[];
+  saved_at: string;
+}
+
+const parseTags = (value: string) =>
+  value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+
 export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+  const [itemsMeta, setItemsMeta] = useState({ total: 0, page: 1, pageSize: 12 });
   const [selectedCategory, setSelectedCategory] = useState<number | "all">("all");
   const [categoryName, setCategoryName] = useState("");
   const [feedName, setFeedName] = useState("");
@@ -43,13 +86,13 @@ export default function App() {
   const [feedCategory, setFeedCategory] = useState<number | "">("");
   const [loading, setLoading] = useState(false);
   const [refreshingFeedId, setRefreshingFeedId] = useState<number | null>(null);
-
-  const filteredItems = useMemo(() => {
-    if (selectedCategory === "all") {
-      return items;
-    }
-    return items.filter((item) => item.category_id === selectedCategory);
-  }, [items, selectedCategory]);
+  const [activeTab, setActiveTab] = useState<"latest" | "readLater" | "favorites">("latest");
+  const [readLaterEntries, setReadLaterEntries] = useState<ReadLaterEntry[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteEntry[]>([]);
+  const [tagDrafts, setTagDrafts] = useState<Record<number, string>>({});
+  const [favoriteTagDrafts, setFavoriteTagDrafts] = useState<Record<number, string>>({});
+  const [favoriteTagFilter, setFavoriteTagFilter] = useState("all");
+  const [favoriteQuery, setFavoriteQuery] = useState("");
 
   const groupedFeeds = useMemo(() => {
     const map = new Map<string, Feed[]>();
@@ -64,31 +107,93 @@ export default function App() {
     return Array.from(map.entries());
   }, [feeds, categories]);
 
-  const loadData = async () => {
-    const ensureArray = <T,>(data: T[] | null) => (Array.isArray(data) ? data : []);
-    const [categoryRes, feedRes, itemRes] = await Promise.all([
-      fetch(`${API_BASE}/api/categories`),
-      fetch(`${API_BASE}/api/feeds`),
-      fetch(`${API_BASE}/api/items`),
-    ]);
-    if (categoryRes.ok) {
-      const data = (await categoryRes.json()) as Category[] | null;
-      setCategories(ensureArray(data));
+  const readLaterItemIds = useMemo(() => new Set(readLaterEntries.map((entry) => entry.item_id)), [
+    readLaterEntries,
+  ]);
+  const favoriteItemIds = useMemo(() => new Set(favorites.map((entry) => entry.item_id)), [favorites]);
+
+  const favoriteTags = useMemo(() => {
+    const tags = new Set<string>();
+    favorites.forEach((entry) => entry.tags.forEach((tag) => tags.add(tag)));
+    return Array.from(tags);
+  }, [favorites]);
+
+  const filteredFavorites = useMemo(() => {
+    const normalizedQuery = favoriteQuery.trim().toLowerCase();
+    return favorites.filter((entry) => {
+      if (favoriteTagFilter !== "all" && !entry.tags.includes(favoriteTagFilter)) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+      return (
+        entry.title.toLowerCase().includes(normalizedQuery) ||
+        entry.summary.toLowerCase().includes(normalizedQuery) ||
+        entry.feed_name.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [favorites, favoriteQuery, favoriteTagFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(itemsMeta.total / itemsMeta.pageSize));
+  const activeCountLabel =
+    activeTab === "latest"
+      ? `${itemsMeta.total} 条`
+      : activeTab === "readLater"
+        ? `${readLaterEntries.length} 条`
+        : `${favorites.length} 条`;
+
+  const fetchJson = async <T,>(url: string, options?: RequestInit): Promise<T | null> => {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      return null;
     }
-    if (feedRes.ok) {
-      const data = (await feedRes.json()) as Feed[] | null;
-      setFeeds(ensureArray(data));
+    return (await response.json()) as T;
+  };
+
+  const loadCategories = async () => {
+    const data = await fetchJson<Category[]>(`${API_BASE}/api/categories`);
+    setCategories(Array.isArray(data) ? data : []);
+  };
+
+  const loadFeeds = async () => {
+    const data = await fetchJson<Feed[]>(`${API_BASE}/api/feeds`);
+    setFeeds(Array.isArray(data) ? data : []);
+  };
+
+  const loadItems = async (page: number, pageSize: number, category: number | "all") => {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (category !== "all") {
+      params.append("category_id", String(category));
     }
-    if (itemRes.ok) {
-      const data = (await itemRes.json()) as Item[] | null;
-      setItems(ensureArray(data));
+    const data = await fetchJson<ItemsResponse>(`${API_BASE}/api/items?${params.toString()}`);
+    if (data) {
+      setItems(Array.isArray(data.items) ? data.items : []);
+      setItemsMeta({ total: data.total ?? 0, page: data.page ?? page, pageSize: data.page_size ?? pageSize });
+    } else {
+      setItems([]);
+      setItemsMeta({ total: 0, page, pageSize });
     }
+  };
+
+  const loadReadLater = async () => {
+    const data = await fetchJson<ReadLaterEntry[]>(`${API_BASE}/api/read-later`);
+    setReadLaterEntries(Array.isArray(data) ? data : []);
+  };
+
+  const loadFavorites = async () => {
+    const data = await fetchJson<FavoriteEntry[]>(`${API_BASE}/api/favorites`);
+    setFavorites(Array.isArray(data) ? data : []);
   };
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      await loadData();
+      await Promise.all([loadCategories(), loadFeeds(), loadReadLater(), loadFavorites()]);
+      await loadItems(itemsMeta.page, itemsMeta.pageSize, selectedCategory);
     } finally {
       setLoading(false);
     }
@@ -97,6 +202,10 @@ export default function App() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    loadItems(itemsMeta.page, itemsMeta.pageSize, selectedCategory);
+  }, [itemsMeta.page, itemsMeta.pageSize, selectedCategory]);
 
   const handleCreateCategory = async () => {
     if (!categoryName.trim()) {
@@ -108,7 +217,7 @@ export default function App() {
       body: JSON.stringify({ name: categoryName.trim() }),
     });
     setCategoryName("");
-    await loadAll();
+    await loadCategories();
   };
 
   const handleCreateFeed = async () => {
@@ -127,14 +236,14 @@ export default function App() {
     setFeedName("");
     setFeedUrl("");
     setFeedCategory("");
-    await loadAll();
+    await loadFeeds();
   };
 
   const handleRefreshAll = async () => {
     setLoading(true);
     try {
       await fetch(`${API_BASE}/api/refresh`, { method: "POST" });
-      await loadData();
+      await loadItems(itemsMeta.page, itemsMeta.pageSize, selectedCategory);
     } finally {
       setLoading(false);
     }
@@ -144,10 +253,56 @@ export default function App() {
     setRefreshingFeedId(feedId);
     try {
       await fetch(`${API_BASE}/api/feeds/${feedId}/refresh`, { method: "POST" });
-      await loadData();
+      await loadFeeds();
     } finally {
       setRefreshingFeedId(null);
     }
+  };
+
+  const handleAddReadLater = async (itemId: number) => {
+    await fetch(`${API_BASE}/api/read-later`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: itemId }),
+    });
+    await loadReadLater();
+  };
+
+  const handleRemoveReadLater = async (itemId: number) => {
+    await fetch(`${API_BASE}/api/read-later/${itemId}`, { method: "DELETE" });
+    await loadReadLater();
+  };
+
+  const handleAddFavorite = async (itemId: number) => {
+    const tags = parseTags(tagDrafts[itemId] ?? "");
+    await fetch(`${API_BASE}/api/favorites`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ item_id: itemId, tags }),
+    });
+    setTagDrafts((prev) => ({ ...prev, [itemId]: "" }));
+    await loadFavorites();
+  };
+
+  const handleUpdateFavoriteTags = async (itemId: number) => {
+    const tags = parseTags(favoriteTagDrafts[itemId] ?? "");
+    await fetch(`${API_BASE}/api/favorites/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    setFavoriteTagDrafts((prev) => ({ ...prev, [itemId]: "" }));
+    await loadFavorites();
+  };
+
+  const handleRemoveFavorite = async (itemId: number) => {
+    await fetch(`${API_BASE}/api/favorites/${itemId}`, { method: "DELETE" });
+    await loadFavorites();
+  };
+
+  const handleCategoryChange = (category: number | "all") => {
+    setSelectedCategory(category);
+    setItemsMeta((prev) => ({ ...prev, page: 1 }));
   };
 
   return (
@@ -156,11 +311,15 @@ export default function App() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-6 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-semibold">To-Reads RSS 阅读器</h1>
-            <p className="text-sm text-slate-400">聚合 RSS / Atom / JSON Feed，按分类查看最新摘要。</p>
+            <p className="text-sm text-slate-400">
+              聚合 RSS / Atom / JSON Feed，在稍后再读与收藏夹中管理摘要。
+            </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleRefreshAll} disabled={loading}>
-            {loading ? "刷新中..." : "刷新内容"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={handleRefreshAll} disabled={loading}>
+              {loading ? "刷新中..." : "刷新内容"}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -175,7 +334,7 @@ export default function App() {
                 <Button
                   size="sm"
                   variant={selectedCategory === "all" ? "default" : "outline"}
-                  onClick={() => setSelectedCategory("all")}
+                  onClick={() => handleCategoryChange("all")}
                 >
                   全部
                 </Button>
@@ -184,7 +343,7 @@ export default function App() {
                     key={category.id}
                     size="sm"
                     variant={selectedCategory === category.id ? "default" : "outline"}
-                    onClick={() => setSelectedCategory(category.id)}
+                    onClick={() => handleCategoryChange(category.id)}
                   >
                     {category.name}
                   </Button>
@@ -297,44 +456,255 @@ export default function App() {
           </Card>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">最新摘要</h2>
-            <span className="text-sm text-slate-400">{filteredItems.length} 条</span>
-          </div>
-          <div className="space-y-4">
-            {filteredItems.length === 0 && (
-              <Card>
-                <CardContent>
-                  <p className="text-sm text-slate-400">暂无内容，请先添加站点。</p>
-                </CardContent>
-              </Card>
-            )}
-            {filteredItems.map((item) => (
-              <Card key={item.id}>
-                <CardContent className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className="bg-slate-800">{item.feed_name}</Badge>
-                    {item.category && <Badge className="bg-slate-700">{item.category}</Badge>}
-                    {item.published_at && (
-                      <span className="text-xs text-slate-400">
-                        {new Date(item.published_at).toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-base font-semibold text-slate-50 hover:underline"
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={activeTab === "latest" ? "default" : "outline"}
+                  onClick={() => setActiveTab("latest")}
+                >
+                  最新摘要
+                </Button>
+                <Button
+                  size="sm"
+                  variant={activeTab === "readLater" ? "default" : "outline"}
+                  onClick={() => setActiveTab("readLater")}
+                >
+                  稍后再读
+                </Button>
+                <Button
+                  size="sm"
+                  variant={activeTab === "favorites" ? "default" : "outline"}
+                  onClick={() => setActiveTab("favorites")}
+                >
+                  收藏夹
+                </Button>
+              </div>
+              <div className="text-sm text-slate-400">
+                {activeCountLabel}
+              </div>
+            </CardContent>
+          </Card>
+
+          {activeTab === "latest" && (
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-slate-400">
+                  第 {itemsMeta.page} / {totalPages} 页 · 每页 {itemsMeta.pageSize} 条
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={itemsMeta.page <= 1}
+                    onClick={() => setItemsMeta((prev) => ({ ...prev, page: prev.page - 1 }))}
                   >
-                    {item.title}
-                  </a>
-                  <p className="text-sm text-slate-300">{item.summary || "暂无摘要"}</p>
+                    上一页
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={itemsMeta.page >= totalPages}
+                    onClick={() => setItemsMeta((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+
+              {items.length === 0 && (
+                <Card>
+                  <CardContent>
+                    <p className="text-sm text-slate-400">暂无内容，请先添加站点。</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="space-y-4">
+                {items.map((item) => (
+                  <Card key={item.id}>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="bg-slate-800">{item.feed_name}</Badge>
+                        {item.category && <Badge className="bg-slate-700">{item.category}</Badge>}
+                        {item.published_at && (
+                          <span className="text-xs text-slate-400">
+                            {new Date(item.published_at).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-base font-semibold text-slate-50 hover:underline"
+                      >
+                        {item.title}
+                      </a>
+                      <p className="text-sm text-slate-300">{item.summary || "暂无摘要"}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={readLaterItemIds.has(item.id) ? "secondary" : "outline"}
+                          onClick={() => handleAddReadLater(item.id)}
+                          disabled={readLaterItemIds.has(item.id)}
+                        >
+                          {readLaterItemIds.has(item.id) ? "已加入稍后再读" : "稍后再读"}
+                        </Button>
+                        {favoriteItemIds.has(item.id) && <Badge className="bg-amber-500/20 text-amber-200">已收藏</Badge>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "readLater" && (
+            <section className="space-y-4">
+              {readLaterEntries.length === 0 && (
+                <Card>
+                  <CardContent>
+                    <p className="text-sm text-slate-400">暂无稍后再读内容。</p>
+                  </CardContent>
+                </Card>
+              )}
+              <div className="space-y-4">
+                {readLaterEntries.map((entry) => (
+                  <Card key={entry.id}>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="bg-slate-800">{entry.feed_name}</Badge>
+                        {entry.category && <Badge className="bg-slate-700">{entry.category}</Badge>}
+                        <span className="text-xs text-slate-400">
+                          保存于 {new Date(entry.saved_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <a
+                        href={entry.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-base font-semibold text-slate-50 hover:underline"
+                      >
+                        {entry.title}
+                      </a>
+                      <p className="text-sm text-slate-300">{entry.summary || "暂无摘要"}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          className="max-w-xs"
+                          placeholder="标签，用逗号分隔"
+                          value={tagDrafts[entry.item_id] ?? ""}
+                          onChange={(event) =>
+                            setTagDrafts((prev) => ({ ...prev, [entry.item_id]: event.target.value }))
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAddFavorite(entry.item_id)}
+                          disabled={favoriteItemIds.has(entry.item_id)}
+                        >
+                          {favoriteItemIds.has(entry.item_id) ? "已收藏" : "收藏"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleRemoveReadLater(entry.item_id)}>
+                          移除
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "favorites" && (
+            <section className="space-y-4">
+              <Card>
+                <CardContent className="flex flex-wrap items-center gap-3 py-4">
+                  <Input
+                    className="max-w-xs"
+                    placeholder="关键词搜索"
+                    value={favoriteQuery}
+                    onChange={(event) => setFavoriteQuery(event.target.value)}
+                  />
+                  <div className="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm">
+                    <label className="mb-1 block text-xs text-slate-400">标签筛选</label>
+                    <select
+                      className="w-full bg-transparent text-sm text-slate-100 focus:outline-none"
+                      value={favoriteTagFilter}
+                      onChange={(event) => setFavoriteTagFilter(event.target.value)}
+                    >
+                      <option value="all">全部</option>
+                      {favoriteTags.map((tag) => (
+                        <option key={tag} value={tag}>
+                          {tag}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+
+              {filteredFavorites.length === 0 && (
+                <Card>
+                  <CardContent>
+                    <p className="text-sm text-slate-400">暂无收藏内容。</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="space-y-4">
+                {filteredFavorites.map((entry) => (
+                  <Card key={entry.id}>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="bg-slate-800">{entry.feed_name}</Badge>
+                        {entry.category && <Badge className="bg-slate-700">{entry.category}</Badge>}
+                        <span className="text-xs text-slate-400">
+                          收藏于 {new Date(entry.saved_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <a
+                        href={entry.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-base font-semibold text-slate-50 hover:underline"
+                      >
+                        {entry.title}
+                      </a>
+                      <p className="text-sm text-slate-300">{entry.summary || "暂无摘要"}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {entry.tags.length === 0 && <span className="text-xs text-slate-500">暂无标签</span>}
+                        {entry.tags.map((tag) => (
+                          <Badge key={tag} className="bg-emerald-500/20 text-emerald-200">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          className="max-w-xs"
+                          placeholder="更新标签，用逗号分隔"
+                          value={favoriteTagDrafts[entry.item_id] ?? ""}
+                          onChange={(event) =>
+                            setFavoriteTagDrafts((prev) => ({ ...prev, [entry.item_id]: event.target.value }))
+                          }
+                        />
+                        <Button size="sm" variant="outline" onClick={() => handleUpdateFavoriteTags(entry.item_id)}>
+                          更新标签
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleRemoveFavorite(entry.item_id)}>
+                          移除
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </main>
     </div>
