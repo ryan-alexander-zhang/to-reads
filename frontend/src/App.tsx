@@ -4,7 +4,10 @@ import { Button } from "./components/ui/button";
 import { Card, CardContent, CardHeader } from "./components/ui/card";
 import { Input } from "./components/ui/input";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+//const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 
 interface Category {
   id: number;

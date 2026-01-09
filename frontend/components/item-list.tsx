@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { InfiniteData, QueryKey } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -19,6 +20,9 @@ type ItemListProps = {
   unreadOnly: boolean;
   favoriteOnly: boolean;
 };
+
+type ItemsInfiniteData = InfiniteData<ItemsResponse>;
+type ItemsQueryTuple = [QueryKey, ItemsInfiniteData | undefined];
 
 const PAGE_SIZE = 20;
 
@@ -72,19 +76,16 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
     mutationFn: ({ id, read }: { id: number; read: boolean }) => api.updateItemRead(id, { read }),
     onMutate: async ({ id, read }) => {
       await queryClient.cancelQueries({ queryKey: ["items"] });
-      const previous = queryClient.getQueriesData<ItemsResponse>({ queryKey: ["items"] });
+      const previous = queryClient.getQueriesData<ItemsInfiniteData>({ queryKey: ["items"] }) as ItemsQueryTuple[];
       previous.forEach(([key, data]) => {
         if (!data) return;
-        queryClient.setQueryData(
-          key,
-          {
+          queryClient.setQueryData<ItemsInfiniteData>(key, {
             ...data,
             pages: data.pages.map((page) => ({
               ...page,
               items: page.items.map((item) => (item.id === id ? { ...item, is_read: read } : item)),
             })),
-          }
-        );
+          });
       });
       return { previous };
     },
@@ -103,21 +104,16 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
       api.updateItemFavorite(id, { favorite }),
     onMutate: async ({ id, favorite }) => {
       await queryClient.cancelQueries({ queryKey: ["items"] });
-      const previous = queryClient.getQueriesData<ItemsResponse>({ queryKey: ["items"] });
+      const previous = queryClient.getQueriesData<ItemsInfiniteData>({ queryKey: ["items"] }) as ItemsQueryTuple[];
       previous.forEach(([key, data]) => {
         if (!data) return;
-        queryClient.setQueryData(
-          key,
-          {
+          queryClient.setQueryData<ItemsInfiniteData>(key, {
             ...data,
             pages: data.pages.map((page) => ({
               ...page,
-              items: page.items.map((item) =>
-                item.id === id ? { ...item, is_favorite: favorite } : item
-              ),
+              items: page.items.map((item) => (item.id === id ? { ...item, is_favorite: favorite } : item)),
             })),
-          }
-        );
+          });
       });
       return { previous };
     },
@@ -135,21 +131,16 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
       api.batchRead({ item_ids: itemIds, read }),
     onMutate: async ({ itemIds, read }) => {
       await queryClient.cancelQueries({ queryKey: ["items"] });
-      const previous = queryClient.getQueriesData<ItemsResponse>({ queryKey: ["items"] });
+      const previous = queryClient.getQueriesData<ItemsInfiniteData>({ queryKey: ["items"] }) as ItemsQueryTuple[];
       previous.forEach(([key, data]) => {
         if (!data) return;
-        queryClient.setQueryData(
-          key,
-          {
+          queryClient.setQueryData<ItemsInfiniteData>(key, {
             ...data,
             pages: data.pages.map((page) => ({
               ...page,
-              items: page.items.map((item) =>
-                itemIds.includes(item.id) ? { ...item, is_read: read } : item
-              ),
+              items: page.items.map((item) => (itemIds.includes(item.id) ? { ...item, is_read: read } : item)),
             })),
-          }
-        );
+          });
       });
       return { previous };
     },
