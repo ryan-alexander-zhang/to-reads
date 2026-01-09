@@ -66,19 +66,23 @@ export default function App() {
   const loadAll = async () => {
     setLoading(true);
     try {
+      const ensureArray = <T,>(data: T[] | null) => (Array.isArray(data) ? data : []);
       const [categoryRes, feedRes, itemRes] = await Promise.all([
         fetch(`${API_BASE}/api/categories`),
         fetch(`${API_BASE}/api/feeds`),
         fetch(`${API_BASE}/api/items`),
       ]);
       if (categoryRes.ok) {
-        setCategories(await categoryRes.json());
+        const data = (await categoryRes.json()) as Category[] | null;
+        setCategories(ensureArray(data));
       }
       if (feedRes.ok) {
-        setFeeds(await feedRes.json());
+        const data = (await feedRes.json()) as Feed[] | null;
+        setFeeds(ensureArray(data));
       }
       if (itemRes.ok) {
-        setItems(await itemRes.json());
+        const data = (await itemRes.json()) as Item[] | null;
+        setItems(ensureArray(data));
       }
     } finally {
       setLoading(false);
