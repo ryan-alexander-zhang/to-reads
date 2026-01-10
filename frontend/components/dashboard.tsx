@@ -6,7 +6,6 @@ import { FeedManager } from "@/components/feed-manager";
 import { FiltersBar } from "@/components/filters-bar";
 import { ItemList } from "@/components/item-list";
 import { SearchBar } from "@/components/search-bar";
-import { UnreadCount } from "@/components/unread-count";
 
 export function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
@@ -30,12 +29,12 @@ export function Dashboard() {
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-center gap-4">
             <SearchBar value={search} onChange={setSearch} />
-            <UnreadCount categoryId={selectedCategory} feedId={selectedFeed} />
             <FiltersBar
               unreadOnly={unreadOnly}
               favoriteOnly={favoriteOnly}
               onUnreadChange={setUnreadOnly}
               onFavoriteChange={setFavoriteOnly}
+              className="ml-auto"
             />
           </div>
         </div>

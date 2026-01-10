@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import AddAdOutlineRoundedIcon from "@/components/icons/add-ad-outline-rounded-icon";
 import AddIcon from "@/components/icons/add-icon";
 import DeleteForeverOutlineRoundedIcon from "@/components/icons/delete-forever-outline-rounded-icon";
+import EditRoundedIcon from "@/components/icons/edit-rounded-icon";
 import RefreshRoundedIcon from "@/components/icons/refresh-rounded-icon";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
@@ -33,6 +34,21 @@ type FeedManagerProps = {
   onSelectFeed: (id: number | null) => void;
 };
 
+function FeedUnreadCount({ feedId }: { feedId: number }) {
+  const { data } = useQuery({
+    queryKey: queryKeys.unreadCount({ feedId }),
+    queryFn: () => api.unreadCount({ feed_id: feedId }),
+  });
+
+  if (!data) return null;
+
+  return (
+    <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
+      未读 {data.unread}
+    </span>
+  );
+}
+
 export function FeedManager({
   selectedCategory,
   selectedFeed,
@@ -43,6 +59,7 @@ export function FeedManager({
   const { toast } = useToast();
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [feedDialogOpen, setFeedDialogOpen] = useState(false);
+  const [editFeedId, setEditFeedId] = useState<number | null>(null);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: queryKeys.categories,
@@ -64,6 +81,15 @@ export function FeedManager({
     defaultValues: { name: "", url: "", category_id: selectedCategory ?? null },
   });
 
+  const editFeedForm = useForm<{ name: string; category_id: number | null }>({
+    defaultValues: { name: "", category_id: null },
+  });
+
+  const editFeed = useMemo(
+    () => feeds.find((feed) => feed.id === editFeedId) ?? null,
+    [editFeedId, feeds]
+  );
+
   useEffect(() => {
     feedForm.setValue("category_id", selectedCategory ?? null);
   }, [selectedCategory, feedForm]);
@@ -79,6 +105,11 @@ export function FeedManager({
       feedForm.reset({ name: "", url: "", category_id: selectedCategory ?? null });
     }
   }, [feedDialogOpen, feedForm, selectedCategory]);
+
+  useEffect(() => {
+    if (!editFeed) return;
+    editFeedForm.reset({ name: editFeed.name, category_id: editFeed.category_id ?? null });
+  }, [editFeed, editFeedForm]);
 
   const createCategory = useMutation({
     mutationFn: api.createCategory,
@@ -197,6 +228,7 @@ export function FeedManager({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
       toast({ title: "站点已更新" });
+      setEditFeedId(null);
     },
   });
 
@@ -408,16 +440,97 @@ export function FeedManager({
             {feeds.map((feed) => (
               <li key={feed.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    className={`text-left ${
-                      selectedFeed === feed.id ? "font-semibold text-primary" : ""
-                    }`}
-                    onClick={() => onSelectFeed(feed.id)}
-                  >
-                    {feed.name}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className={`text-left ${
+                        selectedFeed === feed.id ? "font-semibold text-primary" : ""
+                      }`}
+                      onClick={() => onSelectFeed(feed.id)}
+                    >
+                      {feed.name}
+                    </button>
+                    <FeedUnreadCount feedId={feed.id} />
+                  </div>
                   <div className="flex items-center gap-1">
+                    <Dialog
+                      open={editFeedId === feed.id}
+                      onOpenChange={(open) => setEditFeedId(open ? feed.id : null)}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          aria-label={`编辑站点 ${feed.name}`}
+                        >
+                          <EditRoundedIcon size={18} color="currentColor" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>编辑站点</DialogTitle>
+                          <DialogDescription>更新站点名称和分类。</DialogDescription>
+                        </DialogHeader>
+                        <form
+                          onSubmit={editFeedForm.handleSubmit((values) =>
+                            updateFeed.mutate({
+                              id: feed.id,
+                              payload: {
+                                name: values.name,
+                                category_id: values.category_id ?? 0,
+                              },
+                            })
+                          )}
+                          className="space-y-4"
+                        >
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium" htmlFor={`edit-feed-name-${feed.id}`}>
+                              站点名称
+                            </label>
+                            <Input
+                              id={`edit-feed-name-${feed.id}`}
+                              placeholder="站点名称"
+                              {...editFeedForm.register("name", { required: true })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium" htmlFor={`edit-feed-category-${feed.id}`}>
+                              归属分类
+                            </label>
+                            <select
+                              id={`edit-feed-category-${feed.id}`}
+                              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                              value={editFeedForm.watch("category_id") ?? ""}
+                              onChange={(event) =>
+                                editFeedForm.setValue(
+                                  "category_id",
+                                  event.target.value ? Number(event.target.value) : null
+                                )
+                              }
+                            >
+                              <option value="">未分类</option>
+                              {categories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                  {category.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium" htmlFor={`edit-feed-url-${feed.id}`}>
+                              站点地址
+                            </label>
+                            <Input id={`edit-feed-url-${feed.id}`} value={feed.url} disabled />
+                          </div>
+                          <DialogFooter>
+                            <Button type="submit" size="sm" disabled={updateFeed.isPending}>
+                              保存
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -439,29 +552,6 @@ export function FeedManager({
                       <DeleteForeverOutlineRoundedIcon size={18} color="currentColor" />
                     </Button>
                   </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{feed.url}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <select
-                    className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-                    value={feed.category_id ?? ""}
-                    onChange={(event) =>
-                      updateFeed.mutate({
-                        id: feed.id,
-                        payload: {
-                          category_id: event.target.value ? Number(event.target.value) : 0,
-                        },
-                      })
-                    }
-                    aria-label={`调整站点 ${feed.name} 分类`}
-                  >
-                    <option value="">未分类</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </li>
             ))}

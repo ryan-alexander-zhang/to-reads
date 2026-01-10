@@ -11,6 +11,7 @@ type FiltersBarProps = {
   favoriteOnly: boolean;
   onUnreadChange: (value: boolean) => void;
   onFavoriteChange: (value: boolean) => void;
+  className?: string;
 };
 
 export function FiltersBar({
@@ -18,6 +19,7 @@ export function FiltersBar({
   favoriteOnly,
   onUnreadChange,
   onFavoriteChange,
+  className,
 }: FiltersBarProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -34,18 +36,19 @@ export function FiltersBar({
   }, [open]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <div className="relative" ref={menuRef}>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-9 w-9 p-0"
+          className="gap-2"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-haspopup="menu"
           aria-label="筛选"
         >
           <FilterHorizontalIcon size={18} color="currentColor" />
+          筛选
         </Button>
         {open ? (
           <div
