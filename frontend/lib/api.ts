@@ -52,6 +52,8 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   deleteFeed: (id: number) => request<{ status: string }>(`/feeds/${id}`, { method: "DELETE" }),
+  refreshFeed: (id: number) =>
+    request<{ status: string }>(`/feeds/${id}/refresh`, { method: "POST" }),
   listItems: (params: {
     page: number;
     page_size: number;
