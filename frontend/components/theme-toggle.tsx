@@ -14,17 +14,17 @@ export function ThemeToggle() {
       variant="outline"
       size="sm"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label="切换主题"
+      aria-label="Toggle theme"
     >
       {isDark ? (
         <>
           <Sun className="mr-2 h-4 w-4" />
-          浅色模式
+          Light mode
         </>
       ) : (
         <>
           <Moon className="mr-2 h-4 w-4" />
-          深色模式
+          Dark mode
         </>
       )}
     </Button>

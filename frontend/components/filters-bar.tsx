@@ -44,10 +44,10 @@ export function FiltersBar({
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-haspopup="menu"
-          aria-label="筛选"
+          aria-label="Filters"
         >
           <SlidersHorizontal className="h-4 w-4" />
-          筛选
+          Filters
         </Button>
         {open ? (
           <div
@@ -64,7 +64,7 @@ export function FiltersBar({
               <span className={cn("text-primary", unreadOnly ? "opacity-100" : "opacity-0")}>
                 ✓
               </span>
-              仅未读
+              Unread only
             </button>
             <button
               type="button"
@@ -76,7 +76,7 @@ export function FiltersBar({
               <span className={cn("text-primary", favoriteOnly ? "opacity-100" : "opacity-0")}>
                 ✓
               </span>
-              仅收藏
+              Favorites only
             </button>
           </div>
         ) : null}

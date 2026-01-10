@@ -25,7 +25,7 @@ export function ItemCard({ item, onMarkRead, onToggleFavorite }: ItemCardProps) 
               }`}
               aria-hidden="true"
             />
-            <span className="sr-only">{item.is_read ? "已读" : "未读"}</span>
+            <span className="sr-only">{item.is_read ? "Read" : "Unread"}</span>
             <a
               href={item.link}
               className="min-w-0 truncate hover:underline"
@@ -39,7 +39,7 @@ export function ItemCard({ item, onMarkRead, onToggleFavorite }: ItemCardProps) 
             </a>
           </h3>
           <p className="text-xs text-muted-foreground">
-            {item.feed_name} · {item.category ?? "未分类"}
+            {item.feed_name} · {item.category ?? "Uncategorized"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -49,7 +49,7 @@ export function ItemCard({ item, onMarkRead, onToggleFavorite }: ItemCardProps) 
             className="h-9 w-9 p-0"
             onClick={() => onToggleFavorite(item)}
             aria-pressed={item.is_favorite}
-            aria-label={item.is_favorite ? "取消收藏" : "收藏"}
+            aria-label={item.is_favorite ? "Remove favorite" : "Add favorite"}
           >
             {item.is_favorite ? (
               <BookmarkCheck className="h-[18px] w-[18px]" />
@@ -65,10 +65,10 @@ export function ItemCard({ item, onMarkRead, onToggleFavorite }: ItemCardProps) 
           dangerouslySetInnerHTML={{ __html: summary }}
         />
       ) : (
-        <p className="mt-3 text-sm text-muted-foreground">暂无摘要</p>
+        <p className="mt-3 text-sm text-muted-foreground">No summary available</p>
       )}
       <footer className="mt-3 text-xs text-muted-foreground">
-        {item.published_at ? new Date(item.published_at).toLocaleString() : "未知时间"}
+        {item.published_at ? new Date(item.published_at).toLocaleString() : "Unknown time"}
       </footer>
     </article>
   );

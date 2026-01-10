@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 export const categorySchema = z.object({
-  name: z.string().min(1, "请输入分类名称"),
+  name: z.string().min(1, "Please enter a category name"),
 });
 
 export const feedSchema = z.object({
-  name: z.string().min(1, "请输入站点名称"),
-  url: z.string().url("请输入合法的 URL"),
+  name: z.string().min(1, "Please enter a site name"),
+  url: z.string().url("Please enter a valid URL"),
   category_id: z.number().nullable().optional(),
 });
 
