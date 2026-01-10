@@ -553,29 +553,6 @@ export function FeedManager({
                     </Button>
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{feed.url}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <select
-                    className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
-                    value={feed.category_id ?? ""}
-                    onChange={(event) =>
-                      updateFeed.mutate({
-                        id: feed.id,
-                        payload: {
-                          category_id: event.target.value ? Number(event.target.value) : 0,
-                        },
-                      })
-                    }
-                    aria-label={`调整站点 ${feed.name} 分类`}
-                  >
-                    <option value="">未分类</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </li>
             ))}
           </ul>
