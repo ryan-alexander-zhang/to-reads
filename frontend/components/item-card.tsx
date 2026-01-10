@@ -2,24 +2,41 @@
 
 import DOMPurify from "dompurify";
 
+import BookmarkBoldIcon from "@/components/icons/bookmark-bold-icon";
+import BookmarkLinearIcon from "@/components/icons/bookmark-linear-icon";
 import { Button } from "@/components/ui/button";
 import type { Item } from "@/lib/types";
 
 type ItemCardProps = {
   item: Item;
-  onToggleRead: (item: Item) => void;
+  onMarkRead: (item: Item) => void;
   onToggleFavorite: (item: Item) => void;
 };
 
-export function ItemCard({ item, onToggleRead, onToggleFavorite }: ItemCardProps) {
+export function ItemCard({ item, onMarkRead, onToggleFavorite }: ItemCardProps) {
   const summary = DOMPurify.sanitize(item.summary || "");
 
   return (
     <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold">
-            <a href={item.link} className="hover:underline" target="_blank" rel="noreferrer">
+        <div className="min-w-0">
+          <h3 className="flex items-center gap-2 text-base font-semibold">
+            <span
+              className={`inline-flex h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+                item.is_read ? "bg-emerald-500" : "bg-rose-500"
+              }`}
+              aria-hidden="true"
+            />
+            <span className="sr-only">{item.is_read ? "已读" : "未读"}</span>
+            <a
+              href={item.link}
+              className="min-w-0 truncate hover:underline"
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => {
+                if (!item.is_read) onMarkRead(item);
+              }}
+            >
               {item.title}
             </a>
           </h3>
@@ -30,19 +47,17 @@ export function ItemCard({ item, onToggleRead, onToggleFavorite }: ItemCardProps
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            variant={item.is_read ? "outline" : "default"}
-            onClick={() => onToggleRead(item)}
-            aria-pressed={item.is_read}
-          >
-            {item.is_read ? "标为未读" : "标为已读"}
-          </Button>
-          <Button
-            size="sm"
-            variant={item.is_favorite ? "default" : "outline"}
+            variant="ghost"
+            className="h-9 w-9 p-0"
             onClick={() => onToggleFavorite(item)}
             aria-pressed={item.is_favorite}
+            aria-label={item.is_favorite ? "取消收藏" : "收藏"}
           >
-            {item.is_favorite ? "已收藏" : "收藏"}
+            {item.is_favorite ? (
+              <BookmarkBoldIcon size={18} color="currentColor" />
+            ) : (
+              <BookmarkLinearIcon size={18} color="currentColor" />
+            )}
           </Button>
         </div>
       </header>
