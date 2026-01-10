@@ -40,7 +40,7 @@ function FeedUnreadCount({ feedId }: { feedId: string }) {
 
   return (
     <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
-      Unread {data.unread}
+      {data.unread}
     </span>
   );
 }
@@ -273,6 +273,7 @@ export function FeedManager({
       toast({ title: "Site refreshed" });
     },
   });
+
 
   return (
     <aside className="space-y-6 rounded-lg border border-border bg-card p-4">

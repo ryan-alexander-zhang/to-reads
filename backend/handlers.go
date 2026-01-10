@@ -35,6 +35,24 @@ type Feed struct {
 	CategoryName  *string    `json:"category_name"`
 }
 
+type TransferPayload struct {
+	Categories []TransferCategory `json:"categories"`
+	Feeds      []TransferFeed     `json:"feeds"`
+}
+
+type TransferCategory struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type TransferFeed struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	URL          string  `json:"url"`
+	CategoryID   *string `json:"category_id"`
+	CategoryName *string `json:"category_name"`
+}
+
 type Item struct {
 	ID          string     `json:"id"`
 	FeedID      string     `json:"feed_id"`
@@ -122,6 +140,8 @@ func (s *Server) routes() http.Handler {
 	api.POST("/items/read-batch", s.handleBatchRead)
 	api.PATCH("/items/:id/favorite", s.handleUpdateItemFavorite)
 	api.POST("/refresh", s.handleRefreshAll)
+	api.GET("/export", s.handleExportData)
+	api.POST("/import", s.handleImportData)
 	api.GET("/read-later", s.handleListReadLater)
 	api.POST("/read-later", s.handleCreateReadLater)
 	api.DELETE("/read-later/:itemID", s.handleDeleteReadLater)
@@ -423,6 +443,173 @@ func (s *Server) handleRefreshAll(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
+}
+
+func (s *Server) handleExportData(c *gin.Context) {
+	categoryRows, err := s.db.Query(`SELECT id, name FROM categories ORDER BY name ASC`)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	defer categoryRows.Close()
+
+	categories := make([]TransferCategory, 0)
+	for categoryRows.Next() {
+		var category TransferCategory
+		var categoryID int64
+		if err := categoryRows.Scan(&categoryID, &category.Name); err != nil {
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+		category.ID = formatID(categoryID)
+		categories = append(categories, category)
+	}
+
+	feedRows, err := s.db.Query(`
+		SELECT f.id, f.name, f.url, f.category_id, c.name
+		FROM feeds f
+		LEFT JOIN categories c ON c.id = f.category_id
+		ORDER BY f.name ASC
+	`)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	defer feedRows.Close()
+
+	feeds := make([]TransferFeed, 0)
+	for feedRows.Next() {
+		var feed TransferFeed
+		var feedID int64
+		var categoryID sql.NullInt64
+		if err := feedRows.Scan(&feedID, &feed.Name, &feed.URL, &categoryID, &feed.CategoryName); err != nil {
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+		feed.ID = formatID(feedID)
+		feed.CategoryID = formatNullableID(categoryID)
+		feeds = append(feeds, feed)
+	}
+
+	respondSuccess(c, http.StatusOK, TransferPayload{Categories: categories, Feeds: feeds})
+}
+
+func (s *Server) handleImportData(c *gin.Context) {
+	var payload TransferPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		respondError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	tx, err := s.db.BeginTx(c.Request.Context(), nil)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	rollback := func() {
+		_ = tx.Rollback()
+	}
+
+	categoryNameByID := make(map[string]string)
+	for _, category := range payload.Categories {
+		if strings.TrimSpace(category.ID) == "" {
+			continue
+		}
+		categoryNameByID[strings.TrimSpace(category.ID)] = strings.TrimSpace(category.Name)
+	}
+
+	categoryIDByName := make(map[string]int64)
+	for _, category := range payload.Categories {
+		name := strings.TrimSpace(category.Name)
+		if name == "" {
+			rollback()
+			respondErrorMessage(c, http.StatusBadRequest, "category name is required")
+			return
+		}
+		var categoryID int64
+		if err := tx.QueryRow(
+			`INSERT INTO categories (name) VALUES ($1)
+			ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+			RETURNING id`,
+			name,
+		).Scan(&categoryID); err != nil {
+			rollback()
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+		categoryIDByName[name] = categoryID
+	}
+
+	importedFeeds := 0
+	for _, feed := range payload.Feeds {
+		name := strings.TrimSpace(feed.Name)
+		url := strings.TrimSpace(feed.URL)
+		if name == "" || url == "" {
+			rollback()
+			respondErrorMessage(c, http.StatusBadRequest, "feed name and url are required")
+			return
+		}
+
+		categoryName := ""
+		if feed.CategoryName != nil {
+			categoryName = strings.TrimSpace(*feed.CategoryName)
+		}
+		if categoryName == "" && feed.CategoryID != nil {
+			if mappedName, ok := categoryNameByID[strings.TrimSpace(*feed.CategoryID)]; ok {
+				categoryName = strings.TrimSpace(mappedName)
+			}
+		}
+
+		var categoryID *int64
+		if categoryName != "" {
+			if existingID, ok := categoryIDByName[categoryName]; ok {
+				categoryID = &existingID
+			} else {
+				var newCategoryID int64
+				if err := tx.QueryRow(
+					`INSERT INTO categories (name) VALUES ($1)
+					ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+					RETURNING id`,
+					categoryName,
+				).Scan(&newCategoryID); err != nil {
+					rollback()
+					respondError(c, http.StatusInternalServerError, err)
+					return
+				}
+				categoryIDByName[categoryName] = newCategoryID
+				categoryID = &newCategoryID
+			}
+		}
+
+		var feedID int64
+		if err := tx.QueryRow(
+			`INSERT INTO feeds (name, url, category_id, fetch_interval_minutes)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (url) DO UPDATE SET name = EXCLUDED.name, category_id = EXCLUDED.category_id
+			RETURNING id`,
+			name,
+			url,
+			categoryID,
+			s.config.FetchIntervalMinutes,
+		).Scan(&feedID); err != nil {
+			rollback()
+			respondError(c, http.StatusInternalServerError, err)
+			return
+		}
+		importedFeeds++
+	}
+
+	if err := tx.Commit(); err != nil {
+		rollback()
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondSuccess(c, http.StatusOK, gin.H{
+		"categories": len(payload.Categories),
+		"feeds":      importedFeeds,
+	})
 }
 
 func (s *Server) handleListItems(c *gin.Context) {

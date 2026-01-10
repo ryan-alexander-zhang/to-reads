@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 
+import { ImportExportActions } from "@/components/import-export-actions";
 import { Providers } from "@/components/providers";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <h1 className="text-xl font-semibold">To-Reads</h1>
                   <p className="text-sm text-muted-foreground">Subscription and reading hub</p>
                 </div>
-                <ThemeToggle />
+                <div className="flex items-center gap-3">
+                  <ImportExportActions />
+                  <ThemeToggle />
+                </div>
               </div>
             </header>
             <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
