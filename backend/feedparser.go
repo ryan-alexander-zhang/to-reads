@@ -144,7 +144,7 @@ func parseAtomFeed(data []byte) ([]ParsedItem, error) {
 
 		summary := strings.TrimSpace(entry.Summary)
 		if summary == "" {
-			summary = strings.TrimSpace(entry.Content)
+			summary = "Empty summary."
 		}
 
 		published := parseTime(entry.Published)
