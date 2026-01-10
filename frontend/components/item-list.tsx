@@ -60,6 +60,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
     count: itemsQuery.hasNextPage ? allItems.length + 1 : allItems.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 160,
+    measureElement: (element) => element.getBoundingClientRect().height,
     overscan: 6,
   });
 
@@ -192,6 +193,8 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
                 <div
                   key={virtualRow.key}
                   className="absolute left-0 top-0 w-full"
+                  data-index={virtualRow.index}
+                  ref={rowVirtualizer.measureElement}
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
                   {isLoaderRow ? (
