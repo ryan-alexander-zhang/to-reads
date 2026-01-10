@@ -2,6 +2,7 @@
 
 A lightweight RSS reader that supports RSS, Atom, and JSON Feed, with category management and cached fetching. The frontend offers site and article summary browsing, and you can open the original article by clicking the title.
 
+![image](./media/to-reads-reader-demo-compressed.gif)
 
 ## Features
 
