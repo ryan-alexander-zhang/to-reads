@@ -59,7 +59,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
   const rowVirtualizer = useVirtualizer({
     count: itemsQuery.hasNextPage ? allItems.length + 1 : allItems.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 200,
+    estimateSize: () => 160,
     overscan: 6,
   });
 
