@@ -163,8 +163,9 @@ export function FeedManager({
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.feeds(selectedCategory) });
       const previous = queryClient.getQueryData<Feed[]>(queryKeys.feeds(selectedCategory)) ?? [];
+      const optimisticId = String(Date.now());
       const optimistic: Feed = {
-        id: String(Date.now()),
+        id: optimisticId,
         name: payload.name,
         url: payload.url,
         category_id: payload.category_id ?? null,
@@ -175,7 +176,7 @@ export function FeedManager({
         category_name: categories.find((category) => category.id === payload.category_id)?.name ?? null,
       };
       queryClient.setQueryData(queryKeys.feeds(selectedCategory), [...previous, optimistic]);
-      return { previous };
+      return { previous, optimisticId };
     },
     onError: (_error, _payload, context) => {
       if (context?.previous) {
@@ -183,7 +184,15 @@ export function FeedManager({
       }
       toast({ title: "Failed to add site" });
     },
-    onSuccess: () => {
+    onSuccess: (createdFeed, _payload, context) => {
+      if (context?.optimisticId) {
+        queryClient.setQueriesData<Feed[]>({ queryKey: ["feeds"] }, (data) => {
+          if (!data) return data;
+          return data.map((feed) =>
+            feed.id === context.optimisticId ? { ...feed, ...createdFeed } : feed
+          );
+        });
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
       toast({ title: "Site added" });
       feedForm.reset({ name: "", url: "", category_id: selectedCategory ?? null });
