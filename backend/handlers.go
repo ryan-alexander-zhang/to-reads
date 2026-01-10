@@ -103,7 +103,7 @@ type ItemsResponse struct {
 
 func (s *Server) routes() http.Handler {
 	router := gin.New()
-	router.Use(gin.Logger(), gin.Recovery(), corsMiddleware())
+	router.Use(gin.Logger(), gin.Recovery(), corsMiddleware(), responseMiddleware())
 
 	api := router.Group("/api")
 	api.GET("/health", s.handleHealth)
@@ -129,7 +129,7 @@ func (s *Server) routes() http.Handler {
 }
 
 func (s *Server) handleHealth(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleListCategories(c *gin.Context) {
@@ -140,7 +140,7 @@ func (s *Server) handleListCategories(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var categories []Category
+	categories := make([]Category, 0)
 	for rows.Next() {
 		var category Category
 		if err := rows.Scan(&category.ID, &category.Name, &category.CreatedAt); err != nil {
@@ -149,7 +149,7 @@ func (s *Server) handleListCategories(c *gin.Context) {
 		}
 		categories = append(categories, category)
 	}
-	c.JSON(http.StatusOK, categories)
+	respondSuccess(c, http.StatusOK, categories)
 }
 
 func (s *Server) handleCreateCategory(c *gin.Context) {
@@ -159,7 +159,7 @@ func (s *Server) handleCreateCategory(c *gin.Context) {
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		respondErrorMessage(c, http.StatusBadRequest, "name is required")
 		return
 	}
 
@@ -172,13 +172,13 @@ func (s *Server) handleCreateCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, category)
+	respondSuccess(c, http.StatusCreated, category)
 }
 
 func (s *Server) handleDeleteCategory(c *gin.Context) {
 	categoryID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
 		return
 	}
 
@@ -188,11 +188,11 @@ func (s *Server) handleDeleteCategory(c *gin.Context) {
 		return
 	}
 	if count, _ := result.RowsAffected(); count == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondErrorMessage(c, http.StatusNotFound, "not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleListFeeds(c *gin.Context) {
@@ -223,7 +223,7 @@ func (s *Server) handleListFeeds(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var feeds []Feed
+	feeds := make([]Feed, 0)
 	for rows.Next() {
 		var feed Feed
 		if err := rows.Scan(
@@ -243,7 +243,7 @@ func (s *Server) handleListFeeds(c *gin.Context) {
 		feeds = append(feeds, feed)
 	}
 
-	c.JSON(http.StatusOK, feeds)
+	respondSuccess(c, http.StatusOK, feeds)
 }
 
 func (s *Server) handleCreateFeed(c *gin.Context) {
@@ -253,7 +253,7 @@ func (s *Server) handleCreateFeed(c *gin.Context) {
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.URL) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name and url are required"})
+		respondErrorMessage(c, http.StatusBadRequest, "name and url are required")
 		return
 	}
 
@@ -282,13 +282,13 @@ func (s *Server) handleCreateFeed(c *gin.Context) {
 		_ = s.fetchFeedByID(c.Request.Context(), feedID)
 	}(feed.ID)
 
-	c.JSON(http.StatusCreated, feed)
+	respondSuccess(c, http.StatusCreated, feed)
 }
 
 func (s *Server) handleUpdateFeed(c *gin.Context) {
 	feedID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid feed id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
 		return
 	}
 
@@ -305,7 +305,7 @@ func (s *Server) handleUpdateFeed(c *gin.Context) {
 	if req.Name != nil {
 		trimmed := strings.TrimSpace(*req.Name)
 		if trimmed == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "name cannot be empty"})
+			respondErrorMessage(c, http.StatusBadRequest, "name cannot be empty")
 			return
 		}
 		setClauses = append(setClauses, "name = $"+strconv.Itoa(argIndex))
@@ -324,7 +324,7 @@ func (s *Server) handleUpdateFeed(c *gin.Context) {
 	}
 
 	if len(setClauses) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no fields to update"})
+		respondErrorMessage(c, http.StatusBadRequest, "no fields to update")
 		return
 	}
 
@@ -346,13 +346,13 @@ func (s *Server) handleUpdateFeed(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, feed)
+	respondSuccess(c, http.StatusOK, feed)
 }
 
 func (s *Server) handleDeleteFeed(c *gin.Context) {
 	feedID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid feed id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
 		return
 	}
 
@@ -362,17 +362,17 @@ func (s *Server) handleDeleteFeed(c *gin.Context) {
 		return
 	}
 	if count, _ := result.RowsAffected(); count == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondErrorMessage(c, http.StatusNotFound, "not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleRefreshFeed(c *gin.Context) {
 	feedID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid feed id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
 		return
 	}
 
@@ -381,7 +381,7 @@ func (s *Server) handleRefreshFeed(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleRefreshAll(c *gin.Context) {
@@ -389,7 +389,7 @@ func (s *Server) handleRefreshAll(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleListItems(c *gin.Context) {
@@ -460,7 +460,7 @@ func (s *Server) handleListItems(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var items []Item
+	items := make([]Item, 0)
 	for rows.Next() {
 		var item Item
 		if err := rows.Scan(
@@ -482,7 +482,7 @@ func (s *Server) handleListItems(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	c.JSON(http.StatusOK, ItemsResponse{Items: items, Total: total, Page: page, PageSize: pageSize})
+	respondSuccess(c, http.StatusOK, ItemsResponse{Items: items, Total: total, Page: page, PageSize: pageSize})
 }
 
 func (s *Server) handleUnreadCount(c *gin.Context) {
@@ -510,13 +510,13 @@ func (s *Server) handleUnreadCount(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"unread": count})
+	respondSuccess(c, http.StatusOK, gin.H{"unread": count})
 }
 
 func (s *Server) handleUpdateItemRead(c *gin.Context) {
 	itemID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid item id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
 		return
 	}
 
@@ -532,11 +532,11 @@ func (s *Server) handleUpdateItemRead(c *gin.Context) {
 		return
 	}
 	if count, _ := result.RowsAffected(); count == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondErrorMessage(c, http.StatusNotFound, "not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleBatchRead(c *gin.Context) {
@@ -546,7 +546,7 @@ func (s *Server) handleBatchRead(c *gin.Context) {
 		return
 	}
 	if len(req.ItemIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "item_ids is required"})
+		respondErrorMessage(c, http.StatusBadRequest, "item_ids is required")
 		return
 	}
 
@@ -555,13 +555,13 @@ func (s *Server) handleBatchRead(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleUpdateItemFavorite(c *gin.Context) {
 	itemID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid item id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
 		return
 	}
 
@@ -577,11 +577,11 @@ func (s *Server) handleUpdateItemFavorite(c *gin.Context) {
 		return
 	}
 	if count, _ := result.RowsAffected(); count == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondErrorMessage(c, http.StatusNotFound, "not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func (s *Server) handleListReadLater(c *gin.Context) {
@@ -600,7 +600,7 @@ func (s *Server) handleListReadLater(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var entries []ReadLaterEntry
+	entries := make([]ReadLaterEntry, 0)
 	for rows.Next() {
 		var entry ReadLaterEntry
 		if err := rows.Scan(
@@ -621,7 +621,7 @@ func (s *Server) handleListReadLater(c *gin.Context) {
 		}
 		entries = append(entries, entry)
 	}
-	c.JSON(http.StatusOK, entries)
+	respondSuccess(c, http.StatusOK, entries)
 }
 
 func (s *Server) handleCreateReadLater(c *gin.Context) {
@@ -631,7 +631,7 @@ func (s *Server) handleCreateReadLater(c *gin.Context) {
 		return
 	}
 	if req.ItemID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "item_id is required"})
+		respondErrorMessage(c, http.StatusBadRequest, "item_id is required")
 		return
 	}
 
@@ -646,13 +646,13 @@ func (s *Server) handleCreateReadLater(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, entry)
+	respondSuccess(c, http.StatusCreated, entry)
 }
 
 func (s *Server) handleDeleteReadLater(c *gin.Context) {
 	itemID, err := strconv.Atoi(c.Param("itemID"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid item id"})
+		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
 		return
 	}
 
@@ -662,11 +662,11 @@ func (s *Server) handleDeleteReadLater(c *gin.Context) {
 		return
 	}
 	if count, _ := result.RowsAffected(); count == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondErrorMessage(c, http.StatusNotFound, "not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	respondSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func corsMiddleware() gin.HandlerFunc {
@@ -684,7 +684,48 @@ func corsMiddleware() gin.HandlerFunc {
 }
 
 func respondError(c *gin.Context, status int, err error) {
-	c.JSON(status, gin.H{"error": err.Error()})
+	respondErrorMessage(c, status, err.Error())
+}
+
+type APIResponse struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+}
+
+func responseMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+		if c.Writer.Written() {
+			return
+		}
+		status := c.GetInt("response_status")
+		if status == 0 {
+			status = http.StatusOK
+		}
+		data, ok := c.Get("response_data")
+		if !ok {
+			return
+		}
+		message := c.GetString("response_message")
+		if message == "" {
+			message = http.StatusText(status)
+		}
+		c.JSON(status, APIResponse{Code: status, Message: message, Data: data})
+	}
+}
+
+func respondSuccess(c *gin.Context, status int, data interface{}) {
+	c.Set("response_status", status)
+	c.Set("response_message", "ok")
+	c.Set("response_data", data)
+}
+
+func respondErrorMessage(c *gin.Context, status int, message string) {
+	c.Set("response_status", status)
+	c.Set("response_message", message)
+	c.Set("response_data", nil)
+	c.Abort()
 }
 
 func parsePositiveInt(value string, fallback int) int {

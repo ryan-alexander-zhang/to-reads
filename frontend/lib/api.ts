@@ -2,6 +2,12 @@ import type { Category, Feed, ItemsResponse } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 
+type ApiResponse<T> = {
+  code: number;
+  message: string;
+  data: T;
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -10,12 +16,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
 
+  const body = (await response.json().catch(() => ({}))) as Partial<ApiResponse<T>> & {
+    error?: string;
+    message?: string;
+  };
+
   if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.error ?? "请求失败");
+    throw new Error(body.message ?? body.error ?? "请求失败");
   }
 
-  return response.json() as Promise<T>;
+  return body.data as T;
 }
 
 export const api = {
