@@ -7,7 +7,7 @@ export const categorySchema = z.object({
 export const feedSchema = z.object({
   name: z.string().min(1, "Please enter a site name"),
   url: z.string().url("Please enter a valid URL"),
-  category_id: z.number().nullable().optional(),
+  category_id: z.string().nullable().optional(),
 });
 
 export type CategoryFormValues = z.infer<typeof categorySchema>;

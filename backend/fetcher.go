@@ -40,9 +40,9 @@ func (s *Server) fetchDueFeeds(ctx context.Context) {
 	}
 	defer rows.Close()
 
-	var ids []int
+	var ids []int64
 	for rows.Next() {
-		var id int
+		var id int64
 		if err := rows.Scan(&id); err == nil {
 			ids = append(ids, id)
 		}
@@ -62,9 +62,9 @@ func (s *Server) fetchAllFeeds(ctx context.Context) error {
 	}
 	defer rows.Close()
 
-	var ids []int
+	var ids []int64
 	for rows.Next() {
-		var id int
+		var id int64
 		if err := rows.Scan(&id); err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func (s *Server) fetchAllFeeds(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) fetchFeedByID(ctx context.Context, id int) error {
+func (s *Server) fetchFeedByID(ctx context.Context, id int64) error {
 	var feedURL string
 	query := `SELECT url FROM feeds WHERE id = $1`
 	if err := s.db.QueryRowContext(ctx, query, id).Scan(&feedURL); err != nil {
@@ -122,7 +122,7 @@ func (s *Server) fetchFeedByID(ctx context.Context, id int) error {
 	return s.updateFeedStatus(ctx, id, "success", nil)
 }
 
-func (s *Server) storeItems(ctx context.Context, feedID int, items []ParsedItem) error {
+func (s *Server) storeItems(ctx context.Context, feedID int64, items []ParsedItem) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -154,7 +154,7 @@ func (s *Server) storeItems(ctx context.Context, feedID int, items []ParsedItem)
 	return nil
 }
 
-func (s *Server) updateFeedStatus(ctx context.Context, id int, status string, fetchErr error) error {
+func (s *Server) updateFeedStatus(ctx context.Context, id int64, status string, fetchErr error) error {
 	var errMessage sql.NullString
 	if fetchErr != nil {
 		errMessage = sql.NullString{String: fetchErr.Error(), Valid: true}
