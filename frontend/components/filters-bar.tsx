@@ -1,8 +1,7 @@
 "use client";
 
+import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-import FilterHorizontalIcon from "@/components/icons/filter-horizontal-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +46,7 @@ export function FiltersBar({
           aria-haspopup="menu"
           aria-label="筛选"
         >
-          <FilterHorizontalIcon size={18} color="currentColor" />
+          <SlidersHorizontal className="h-4 w-4" />
           筛选
         </Button>
         {open ? (

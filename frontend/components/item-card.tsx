@@ -1,9 +1,7 @@
 "use client";
 
 import DOMPurify from "dompurify";
-
-import BookmarkBoldIcon from "@/components/icons/bookmark-bold-icon";
-import BookmarkLinearIcon from "@/components/icons/bookmark-linear-icon";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Item } from "@/lib/types";
 
@@ -54,9 +52,9 @@ export function ItemCard({ item, onMarkRead, onToggleFavorite }: ItemCardProps) 
             aria-label={item.is_favorite ? "取消收藏" : "收藏"}
           >
             {item.is_favorite ? (
-              <BookmarkBoldIcon size={18} color="currentColor" />
+              <BookmarkCheck className="h-[18px] w-[18px]" />
             ) : (
-              <BookmarkLinearIcon size={18} color="currentColor" />
+              <Bookmark className="h-[18px] w-[18px]" />
             )}
           </Button>
         </div>

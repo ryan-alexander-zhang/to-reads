@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FolderPlus, Plus, RefreshCw, SquarePen, Trash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -17,11 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import AddAdOutlineRoundedIcon from "@/components/icons/add-ad-outline-rounded-icon";
-import AddIcon from "@/components/icons/add-icon";
-import DeleteForeverOutlineRoundedIcon from "@/components/icons/delete-forever-outline-rounded-icon";
-import EditRoundedIcon from "@/components/icons/edit-rounded-icon";
-import RefreshRoundedIcon from "@/components/icons/refresh-rounded-icon";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { Category, Feed } from "@/lib/types";
@@ -291,7 +287,7 @@ export function FeedManager({
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                   aria-label="添加分类"
                 >
-                  <AddAdOutlineRoundedIcon size={18} color="currentColor" />
+                  <FolderPlus className="h-[18px] w-[18px]" />
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -365,7 +361,7 @@ export function FeedManager({
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 aria-label="添加站点"
               >
-                <AddIcon size={18} color="currentColor" />
+                <Plus className="h-[18px] w-[18px]" />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -464,7 +460,7 @@ export function FeedManager({
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                           aria-label={`编辑站点 ${feed.name}`}
                         >
-                          <EditRoundedIcon size={18} color="currentColor" />
+                          <SquarePen className="h-[18px] w-[18px]" />
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
@@ -539,7 +535,7 @@ export function FeedManager({
                       aria-label={`刷新站点 ${feed.name}`}
                       disabled={refreshFeed.isPending && refreshFeed.variables === feed.id}
                     >
-                      <RefreshRoundedIcon size={18} color="currentColor" />
+                      <RefreshCw className="h-[18px] w-[18px]" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -549,7 +545,7 @@ export function FeedManager({
                       aria-label={`删除站点 ${feed.name}`}
                       disabled={deleteFeed.isPending && deleteFeed.variables === feed.id}
                     >
-                      <DeleteForeverOutlineRoundedIcon size={18} color="currentColor" />
+                      <Trash className="h-[18px] w-[18px]" />
                     </Button>
                   </div>
                 </div>
