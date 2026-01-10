@@ -35,30 +35,30 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  deleteCategory: (id: number) =>
+  deleteCategory: (id: string) =>
     request<{ status: string }>(`/categories/${id}`, { method: "DELETE" }),
-  listFeeds: (categoryId?: number | null) => {
+  listFeeds: (categoryId?: string | null) => {
     const query = categoryId ? `?category_id=${categoryId}` : "";
     return request<Feed[]>(`/feeds${query}`);
   },
-  createFeed: (payload: { name: string; url: string; category_id?: number | null }) =>
+  createFeed: (payload: { name: string; url: string; category_id?: string | null }) =>
     request<Feed>("/feeds", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateFeed: (id: number, payload: { name?: string; category_id?: number | null }) =>
+  updateFeed: (id: string, payload: { name?: string; category_id?: string | null }) =>
     request<Feed>(`/feeds/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  deleteFeed: (id: number) => request<{ status: string }>(`/feeds/${id}`, { method: "DELETE" }),
-  refreshFeed: (id: number) =>
+  deleteFeed: (id: string) => request<{ status: string }>(`/feeds/${id}`, { method: "DELETE" }),
+  refreshFeed: (id: string) =>
     request<{ status: string }>(`/feeds/${id}/refresh`, { method: "POST" }),
   listItems: (params: {
     page: number;
     page_size: number;
-    category_id?: number | null;
-    feed_id?: number | null;
+    category_id?: string | null;
+    feed_id?: string | null;
     q?: string;
     unread?: boolean;
     favorite?: boolean;
@@ -66,32 +66,32 @@ export const api = {
     const query = new URLSearchParams();
     query.set("page", String(params.page));
     query.set("page_size", String(params.page_size));
-    if (params.category_id) query.set("category_id", String(params.category_id));
-    if (params.feed_id) query.set("feed_id", String(params.feed_id));
+    if (params.category_id != null) query.set("category_id", String(params.category_id));
+    if (params.feed_id != null) query.set("feed_id", String(params.feed_id));
     if (params.q) query.set("q", params.q);
     if (params.unread) query.set("unread", "true");
     if (params.favorite) query.set("favorite", "true");
     return request<ItemsResponse>(`/items?${query.toString()}`);
   },
-  updateItemRead: (id: number, payload: { read: boolean }) =>
+  updateItemRead: (id: string, payload: { read: boolean }) =>
     request<{ status: string }>(`/items/${id}/read`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  batchRead: (payload: { item_ids: number[]; read: boolean }) =>
+  batchRead: (payload: { item_ids: string[]; read: boolean }) =>
     request<{ status: string }>("/items/read-batch", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateItemFavorite: (id: number, payload: { favorite: boolean }) =>
+  updateItemFavorite: (id: string, payload: { favorite: boolean }) =>
     request<{ status: string }>(`/items/${id}/favorite`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  unreadCount: (params: { category_id?: number | null; feed_id?: number | null }) => {
+  unreadCount: (params: { category_id?: string | null; feed_id?: string | null }) => {
     const query = new URLSearchParams();
-    if (params.category_id) query.set("category_id", String(params.category_id));
-    if (params.feed_id) query.set("feed_id", String(params.feed_id));
+    if (params.category_id != null) query.set("category_id", String(params.category_id));
+    if (params.feed_id != null) query.set("feed_id", String(params.feed_id));
     return request<{ unread: number }>(`/items/unread-count?${query.toString()}`);
   },
 };

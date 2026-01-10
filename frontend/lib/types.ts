@@ -1,14 +1,14 @@
 export type Category = {
-  id: number;
+  id: string;
   name: string;
   created_at: string;
 };
 
 export type Feed = {
-  id: number;
+  id: string;
   name: string;
   url: string;
-  category_id: number | null;
+  category_id: string | null;
   fetch_interval_minutes: number;
   last_fetched_at: string | null;
   last_status: string | null;
@@ -17,10 +17,10 @@ export type Feed = {
 };
 
 export type Item = {
-  id: number;
-  feed_id: number;
+  id: string;
+  feed_id: string;
   feed_name: string;
-  category_id: number | null;
+  category_id: string | null;
   category: string | null;
   title: string;
   link: string;

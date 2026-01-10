@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,16 +18,16 @@ type Server struct {
 }
 
 type Category struct {
-	ID        int       `json:"id"`
+	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type Feed struct {
-	ID            int        `json:"id"`
+	ID            string     `json:"id"`
 	Name          string     `json:"name"`
 	URL           string     `json:"url"`
-	CategoryID    *int       `json:"category_id"`
+	CategoryID    *string    `json:"category_id"`
 	FetchInterval int        `json:"fetch_interval_minutes"`
 	LastFetchedAt *time.Time `json:"last_fetched_at"`
 	LastStatus    *string    `json:"last_status"`
@@ -35,10 +36,10 @@ type Feed struct {
 }
 
 type Item struct {
-	ID          int        `json:"id"`
-	FeedID      int        `json:"feed_id"`
+	ID          string     `json:"id"`
+	FeedID      string     `json:"feed_id"`
 	FeedName    string     `json:"feed_name"`
-	CategoryID  *int       `json:"category_id"`
+	CategoryID  *string    `json:"category_id"`
 	Category    *string    `json:"category"`
 	Title       string     `json:"title"`
 	Link        string     `json:"link"`
@@ -49,11 +50,11 @@ type Item struct {
 }
 
 type ReadLaterEntry struct {
-	ID          int        `json:"id"`
-	ItemID      int        `json:"item_id"`
-	FeedID      int        `json:"feed_id"`
+	ID          string     `json:"id"`
+	ItemID      string     `json:"item_id"`
+	FeedID      string     `json:"feed_id"`
 	FeedName    string     `json:"feed_name"`
-	CategoryID  *int       `json:"category_id"`
+	CategoryID  *string    `json:"category_id"`
 	Category    *string    `json:"category"`
 	Title       string     `json:"title"`
 	Link        string     `json:"link"`
@@ -67,13 +68,13 @@ type createCategoryRequest struct {
 }
 
 type createFeedRequest struct {
-	Name       string `json:"name"`
-	URL        string `json:"url"`
-	CategoryID *int   `json:"category_id"`
+	Name       string  `json:"name"`
+	URL        string  `json:"url"`
+	CategoryID *string `json:"category_id"`
 }
 
 type createReadLaterRequest struct {
-	ItemID int `json:"item_id"`
+	ItemID string `json:"item_id"`
 }
 
 type updateItemReadRequest struct {
@@ -81,8 +82,8 @@ type updateItemReadRequest struct {
 }
 
 type batchReadRequest struct {
-	ItemIDs []int `json:"item_ids"`
-	Read    bool  `json:"read"`
+	ItemIDs []string `json:"item_ids"`
+	Read    bool     `json:"read"`
 }
 
 type updateItemFavoriteRequest struct {
@@ -91,7 +92,7 @@ type updateItemFavoriteRequest struct {
 
 type updateFeedRequest struct {
 	Name       *string `json:"name"`
-	CategoryID *int    `json:"category_id"`
+	CategoryID *string `json:"category_id"`
 }
 
 type ItemsResponse struct {
@@ -143,10 +144,12 @@ func (s *Server) handleListCategories(c *gin.Context) {
 	categories := make([]Category, 0)
 	for rows.Next() {
 		var category Category
-		if err := rows.Scan(&category.ID, &category.Name, &category.CreatedAt); err != nil {
+		var categoryID int64
+		if err := rows.Scan(&categoryID, &category.Name, &category.CreatedAt); err != nil {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
+		category.ID = formatID(categoryID)
 		categories = append(categories, category)
 	}
 	respondSuccess(c, http.StatusOK, categories)
@@ -167,16 +170,18 @@ func (s *Server) handleCreateCategory(c *gin.Context) {
 	query := `INSERT INTO categories (name) VALUES ($1)
 		ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
 		RETURNING id, name, created_at`
-	if err := s.db.QueryRow(query, strings.TrimSpace(req.Name)).Scan(&category.ID, &category.Name, &category.CreatedAt); err != nil {
+	var categoryID int64
+	if err := s.db.QueryRow(query, strings.TrimSpace(req.Name)).Scan(&categoryID, &category.Name, &category.CreatedAt); err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
+	category.ID = formatID(categoryID)
 
 	respondSuccess(c, http.StatusCreated, category)
 }
 
 func (s *Server) handleDeleteCategory(c *gin.Context) {
-	categoryID, err := strconv.Atoi(c.Param("id"))
+	categoryID, err := parseIDParam(c.Param("id"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
 		return
@@ -196,10 +201,15 @@ func (s *Server) handleDeleteCategory(c *gin.Context) {
 }
 
 func (s *Server) handleListFeeds(c *gin.Context) {
-	categoryID := c.Query("category_id")
+	categoryIDParam := c.Query("category_id")
 	var rows *sql.Rows
 	var err error
-	if categoryID != "" {
+	if categoryIDParam != "" {
+		categoryID, err := parseIDParam(categoryIDParam)
+		if err != nil {
+			respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
+			return
+		}
 		rows, err = s.db.Query(`
 			SELECT f.id, f.name, f.url, f.category_id, f.fetch_interval_minutes, f.last_fetched_at, f.last_status, f.last_error,
 				c.name
@@ -226,11 +236,13 @@ func (s *Server) handleListFeeds(c *gin.Context) {
 	feeds := make([]Feed, 0)
 	for rows.Next() {
 		var feed Feed
+		var feedID int64
+		var categoryID sql.NullInt64
 		if err := rows.Scan(
-			&feed.ID,
+			&feedID,
 			&feed.Name,
 			&feed.URL,
-			&feed.CategoryID,
+			&categoryID,
 			&feed.FetchInterval,
 			&feed.LastFetchedAt,
 			&feed.LastStatus,
@@ -240,6 +252,8 @@ func (s *Server) handleListFeeds(c *gin.Context) {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
+		feed.ID = formatID(feedID)
+		feed.CategoryID = formatNullableID(categoryID)
 		feeds = append(feeds, feed)
 	}
 
@@ -257,6 +271,12 @@ func (s *Server) handleCreateFeed(c *gin.Context) {
 		return
 	}
 
+	categoryID, err := parseOptionalID(req.CategoryID)
+	if err != nil {
+		respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
+		return
+	}
+
 	var feed Feed
 	query := `
 		INSERT INTO feeds (name, url, category_id, fetch_interval_minutes)
@@ -264,11 +284,13 @@ func (s *Server) handleCreateFeed(c *gin.Context) {
 		ON CONFLICT (url) DO UPDATE SET name = EXCLUDED.name, category_id = EXCLUDED.category_id
 		RETURNING id, name, url, category_id, fetch_interval_minutes, last_fetched_at, last_status, last_error
 	`
-	if err := s.db.QueryRow(query, strings.TrimSpace(req.Name), strings.TrimSpace(req.URL), req.CategoryID, s.config.FetchIntervalMinutes).Scan(
-		&feed.ID,
+	var feedID int64
+	var scannedCategoryID sql.NullInt64
+	if err := s.db.QueryRow(query, strings.TrimSpace(req.Name), strings.TrimSpace(req.URL), categoryID, s.config.FetchIntervalMinutes).Scan(
+		&feedID,
 		&feed.Name,
 		&feed.URL,
-		&feed.CategoryID,
+		&scannedCategoryID,
 		&feed.FetchInterval,
 		&feed.LastFetchedAt,
 		&feed.LastStatus,
@@ -277,16 +299,18 @@ func (s *Server) handleCreateFeed(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
+	feed.ID = formatID(feedID)
+	feed.CategoryID = formatNullableID(scannedCategoryID)
 
-	go func(feedID int) {
+	go func(feedID int64) {
 		_ = s.fetchFeedByID(c.Request.Context(), feedID)
-	}(feed.ID)
+	}(feedID)
 
 	respondSuccess(c, http.StatusCreated, feed)
 }
 
 func (s *Server) handleUpdateFeed(c *gin.Context) {
-	feedID, err := strconv.Atoi(c.Param("id"))
+	feedID, err := parseIDParam(c.Param("id"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
 		return
@@ -314,11 +338,16 @@ func (s *Server) handleUpdateFeed(c *gin.Context) {
 	}
 
 	if req.CategoryID != nil {
-		if *req.CategoryID == 0 {
+		categoryID, err := parseOptionalID(req.CategoryID)
+		if err != nil {
+			respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
+			return
+		}
+		if categoryID == nil || *categoryID == 0 {
 			setClauses = append(setClauses, "category_id = NULL")
 		} else {
 			setClauses = append(setClauses, "category_id = $"+strconv.Itoa(argIndex))
-			args = append(args, req.CategoryID)
+			args = append(args, *categoryID)
 			argIndex++
 		}
 	}
@@ -332,11 +361,13 @@ func (s *Server) handleUpdateFeed(c *gin.Context) {
 	query := `UPDATE feeds SET ` + strings.Join(setClauses, ", ") + ` WHERE id = $` + strconv.Itoa(argIndex) + ` RETURNING id, name, url, category_id, fetch_interval_minutes, last_fetched_at, last_status, last_error`
 
 	var feed Feed
+	var updatedFeedID int64
+	var categoryID sql.NullInt64
 	if err := s.db.QueryRow(query, args...).Scan(
-		&feed.ID,
+		&updatedFeedID,
 		&feed.Name,
 		&feed.URL,
-		&feed.CategoryID,
+		&categoryID,
 		&feed.FetchInterval,
 		&feed.LastFetchedAt,
 		&feed.LastStatus,
@@ -345,12 +376,14 @@ func (s *Server) handleUpdateFeed(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
+	feed.ID = formatID(updatedFeedID)
+	feed.CategoryID = formatNullableID(categoryID)
 
 	respondSuccess(c, http.StatusOK, feed)
 }
 
 func (s *Server) handleDeleteFeed(c *gin.Context) {
-	feedID, err := strconv.Atoi(c.Param("id"))
+	feedID, err := parseIDParam(c.Param("id"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
 		return
@@ -370,7 +403,7 @@ func (s *Server) handleDeleteFeed(c *gin.Context) {
 }
 
 func (s *Server) handleRefreshFeed(c *gin.Context) {
-	feedID, err := strconv.Atoi(c.Param("id"))
+	feedID, err := parseIDParam(c.Param("id"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
 		return
@@ -393,8 +426,8 @@ func (s *Server) handleRefreshAll(c *gin.Context) {
 }
 
 func (s *Server) handleListItems(c *gin.Context) {
-	categoryID := c.Query("category_id")
-	feedID := c.Query("feed_id")
+	categoryIDParam := c.Query("category_id")
+	feedIDParam := c.Query("feed_id")
 	searchQuery := strings.TrimSpace(c.Query("q"))
 	unreadOnly := c.Query("unread") == "true"
 	favoriteOnly := c.Query("favorite") == "true"
@@ -405,12 +438,22 @@ func (s *Server) handleListItems(c *gin.Context) {
 	conditions := []string{}
 	args := []interface{}{}
 	argIndex := 1
-	if categoryID != "" {
+	if categoryIDParam != "" {
+		categoryID, err := parseIDParam(categoryIDParam)
+		if err != nil {
+			respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
+			return
+		}
 		conditions = append(conditions, "f.category_id = $"+strconv.Itoa(argIndex))
 		args = append(args, categoryID)
 		argIndex++
 	}
-	if feedID != "" {
+	if feedIDParam != "" {
+		feedID, err := parseIDParam(feedIDParam)
+		if err != nil {
+			respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
+			return
+		}
 		conditions = append(conditions, "i.feed_id = $"+strconv.Itoa(argIndex))
 		args = append(args, feedID)
 		argIndex++
@@ -463,11 +506,14 @@ func (s *Server) handleListItems(c *gin.Context) {
 	items := make([]Item, 0)
 	for rows.Next() {
 		var item Item
+		var itemID int64
+		var feedID int64
+		var categoryID sql.NullInt64
 		if err := rows.Scan(
-			&item.ID,
-			&item.FeedID,
+			&itemID,
+			&feedID,
 			&item.FeedName,
-			&item.CategoryID,
+			&categoryID,
 			&item.Category,
 			&item.Title,
 			&item.Link,
@@ -479,6 +525,9 @@ func (s *Server) handleListItems(c *gin.Context) {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
+		item.ID = formatID(itemID)
+		item.FeedID = formatID(feedID)
+		item.CategoryID = formatNullableID(categoryID)
 		items = append(items, item)
 	}
 
@@ -486,18 +535,28 @@ func (s *Server) handleListItems(c *gin.Context) {
 }
 
 func (s *Server) handleUnreadCount(c *gin.Context) {
-	categoryID := c.Query("category_id")
-	feedID := c.Query("feed_id")
+	categoryIDParam := c.Query("category_id")
+	feedIDParam := c.Query("feed_id")
 	conditions := []string{"i.is_read = FALSE"}
 	args := []interface{}{}
 	argIndex := 1
 
-	if categoryID != "" {
+	if categoryIDParam != "" {
+		categoryID, err := parseIDParam(categoryIDParam)
+		if err != nil {
+			respondErrorMessage(c, http.StatusBadRequest, "invalid category id")
+			return
+		}
 		conditions = append(conditions, "f.category_id = $"+strconv.Itoa(argIndex))
 		args = append(args, categoryID)
 		argIndex++
 	}
-	if feedID != "" {
+	if feedIDParam != "" {
+		feedID, err := parseIDParam(feedIDParam)
+		if err != nil {
+			respondErrorMessage(c, http.StatusBadRequest, "invalid feed id")
+			return
+		}
 		conditions = append(conditions, "i.feed_id = $"+strconv.Itoa(argIndex))
 		args = append(args, feedID)
 		argIndex++
@@ -514,7 +573,7 @@ func (s *Server) handleUnreadCount(c *gin.Context) {
 }
 
 func (s *Server) handleUpdateItemRead(c *gin.Context) {
-	itemID, err := strconv.Atoi(c.Param("id"))
+	itemID, err := parseIDParam(c.Param("id"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
 		return
@@ -550,8 +609,14 @@ func (s *Server) handleBatchRead(c *gin.Context) {
 		return
 	}
 
+	itemIDs, err := parseIDSlice(req.ItemIDs)
+	if err != nil {
+		respondErrorMessage(c, http.StatusBadRequest, "invalid item ids")
+		return
+	}
+
 	query := `UPDATE items SET is_read = $1 WHERE id = ANY($2)`
-	if _, err := s.db.Exec(query, req.Read, pqArray(req.ItemIDs)); err != nil {
+	if _, err := s.db.Exec(query, req.Read, pqArray(itemIDs)); err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -559,7 +624,7 @@ func (s *Server) handleBatchRead(c *gin.Context) {
 }
 
 func (s *Server) handleUpdateItemFavorite(c *gin.Context) {
-	itemID, err := strconv.Atoi(c.Param("id"))
+	itemID, err := parseIDParam(c.Param("id"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
 		return
@@ -603,13 +668,17 @@ func (s *Server) handleListReadLater(c *gin.Context) {
 	entries := make([]ReadLaterEntry, 0)
 	for rows.Next() {
 		var entry ReadLaterEntry
+		var entryID int64
+		var itemID int64
+		var feedID int64
+		var categoryID sql.NullInt64
 		if err := rows.Scan(
-			&entry.ID,
-			&entry.ItemID,
+			&entryID,
+			&itemID,
 			&entry.SavedAt,
-			&entry.FeedID,
+			&feedID,
 			&entry.FeedName,
-			&entry.CategoryID,
+			&categoryID,
 			&entry.Category,
 			&entry.Title,
 			&entry.Link,
@@ -619,6 +688,10 @@ func (s *Server) handleListReadLater(c *gin.Context) {
 			respondError(c, http.StatusInternalServerError, err)
 			return
 		}
+		entry.ID = formatID(entryID)
+		entry.ItemID = formatID(itemID)
+		entry.FeedID = formatID(feedID)
+		entry.CategoryID = formatNullableID(categoryID)
 		entries = append(entries, entry)
 	}
 	respondSuccess(c, http.StatusOK, entries)
@@ -630,27 +703,36 @@ func (s *Server) handleCreateReadLater(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, err)
 		return
 	}
-	if req.ItemID == 0 {
+	itemID, err := parseIDParam(req.ItemID)
+	if err != nil {
+		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
+		return
+	}
+	if itemID == 0 {
 		respondErrorMessage(c, http.StatusBadRequest, "item_id is required")
 		return
 	}
 
 	var entry ReadLaterEntry
+	var entryID int64
+	var entryItemID int64
 	if err := s.db.QueryRow(`
 		INSERT INTO read_later (item_id)
 		VALUES ($1)
 		ON CONFLICT (item_id) DO UPDATE SET item_id = EXCLUDED.item_id
 		RETURNING id, item_id, created_at
-	`, req.ItemID).Scan(&entry.ID, &entry.ItemID, &entry.SavedAt); err != nil {
+	`, itemID).Scan(&entryID, &entryItemID, &entry.SavedAt); err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
+	entry.ID = formatID(entryID)
+	entry.ItemID = formatID(entryItemID)
 
 	respondSuccess(c, http.StatusCreated, entry)
 }
 
 func (s *Server) handleDeleteReadLater(c *gin.Context) {
-	itemID, err := strconv.Atoi(c.Param("itemID"))
+	itemID, err := parseIDParam(c.Param("itemID"))
 	if err != nil {
 		respondErrorMessage(c, http.StatusBadRequest, "invalid item id")
 		return
@@ -728,6 +810,52 @@ func respondErrorMessage(c *gin.Context, status int, message string) {
 	c.Abort()
 }
 
+func formatID(value int64) string {
+	return strconv.FormatInt(value, 10)
+}
+
+func formatNullableID(value sql.NullInt64) *string {
+	if !value.Valid {
+		return nil
+	}
+	formatted := formatID(value.Int64)
+	return &formatted
+}
+
+func parseIDParam(value string) (int64, error) {
+	return strconv.ParseInt(value, 10, 64)
+}
+
+func parseOptionalID(value *string) (*int64, error) {
+	if value == nil {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil, nil
+	}
+	parsed, err := strconv.ParseInt(trimmed, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func parseIDSlice(values []string) ([]int64, error) {
+	parsed := make([]int64, 0, len(values))
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return nil, fmt.Errorf("invalid id")
+		}
+		id, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		parsed = append(parsed, id)
+	}
+	return parsed, nil
+}
+
 func parsePositiveInt(value string, fallback int) int {
 	if value == "" {
 		return fallback
@@ -739,6 +867,6 @@ func parsePositiveInt(value string, fallback int) int {
 	return parsed
 }
 
-func pqArray(values []int) interface{} {
+func pqArray(values []int64) interface{} {
 	return pq.Array(values)
 }

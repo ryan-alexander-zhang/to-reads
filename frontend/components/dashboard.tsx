@@ -8,8 +8,8 @@ import { ItemList } from "@/components/item-list";
 import { SearchBar } from "@/components/search-bar";
 
 export function Dashboard() {
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [selectedFeed, setSelectedFeed] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedFeed, setSelectedFeed] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [favoriteOnly, setFavoriteOnly] = useState(false);

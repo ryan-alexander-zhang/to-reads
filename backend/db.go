@@ -31,15 +31,15 @@ func OpenDB(databaseURL string) (*sql.DB, error) {
 func migrate(db *sql.DB) error {
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS categories (
-			id SERIAL PRIMARY KEY,
+			id BIGSERIAL PRIMARY KEY,
 			name TEXT NOT NULL UNIQUE,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS feeds (
-			id SERIAL PRIMARY KEY,
+			id BIGSERIAL PRIMARY KEY,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL UNIQUE,
-			category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+			category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL,
 			fetch_interval_minutes INTEGER NOT NULL DEFAULT 60,
 			last_fetched_at TIMESTAMPTZ,
 			last_status TEXT,
@@ -47,8 +47,8 @@ func migrate(db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS items (
-			id SERIAL PRIMARY KEY,
-			feed_id INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+			id BIGSERIAL PRIMARY KEY,
+			feed_id BIGINT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
 			title TEXT NOT NULL,
 			link TEXT NOT NULL,
 			summary TEXT,
@@ -60,10 +60,21 @@ func migrate(db *sql.DB) error {
 			UNIQUE(feed_id, guid)
 		)`,
 		`CREATE TABLE IF NOT EXISTS read_later (
-			id SERIAL PRIMARY KEY,
-			item_id INTEGER NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
+			id BIGSERIAL PRIMARY KEY,
+			item_id BIGINT NOT NULL UNIQUE REFERENCES items(id) ON DELETE CASCADE,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		`ALTER SEQUENCE IF EXISTS categories_id_seq AS BIGINT`,
+		`ALTER SEQUENCE IF EXISTS feeds_id_seq AS BIGINT`,
+		`ALTER SEQUENCE IF EXISTS items_id_seq AS BIGINT`,
+		`ALTER SEQUENCE IF EXISTS read_later_id_seq AS BIGINT`,
+		`ALTER TABLE categories ALTER COLUMN id TYPE BIGINT`,
+		`ALTER TABLE feeds ALTER COLUMN id TYPE BIGINT`,
+		`ALTER TABLE feeds ALTER COLUMN category_id TYPE BIGINT`,
+		`ALTER TABLE items ALTER COLUMN id TYPE BIGINT`,
+		`ALTER TABLE items ALTER COLUMN feed_id TYPE BIGINT`,
+		`ALTER TABLE read_later ALTER COLUMN id TYPE BIGINT`,
+		`ALTER TABLE read_later ALTER COLUMN item_id TYPE BIGINT`,
 		`ALTER TABLE items ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE items ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT FALSE`,
 		`CREATE INDEX IF NOT EXISTS idx_items_published_at ON items(published_at DESC)`,

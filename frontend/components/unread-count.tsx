@@ -7,8 +7,8 @@ import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 
 type UnreadCountProps = {
-  categoryId: number | null;
-  feedId: number | null;
+  categoryId: string | null;
+  feedId: string | null;
 };
 
 export function UnreadCount({ categoryId, feedId }: UnreadCountProps) {

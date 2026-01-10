@@ -14,8 +14,8 @@ import { queryKeys } from "@/lib/query-keys";
 import type { ItemsResponse } from "@/lib/types";
 
 type ItemListProps = {
-  categoryId: number | null;
-  feedId: number | null;
+  categoryId: string | null;
+  feedId: string | null;
   search: string;
   unreadOnly: boolean;
   favoriteOnly: boolean;
@@ -74,19 +74,19 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
   }, [allItems.length, itemsQuery, rowVirtualizer]);
 
   const updateRead = useMutation({
-    mutationFn: ({ id, read }: { id: number; read: boolean }) => api.updateItemRead(id, { read }),
+    mutationFn: ({ id, read }: { id: string; read: boolean }) => api.updateItemRead(id, { read }),
     onMutate: async ({ id, read }) => {
       await queryClient.cancelQueries({ queryKey: ["items"] });
       const previous = queryClient.getQueriesData<ItemsInfiniteData>({ queryKey: ["items"] }) as ItemsQueryTuple[];
       previous.forEach(([key, data]) => {
         if (!data) return;
-          queryClient.setQueryData<ItemsInfiniteData>(key, {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) => (item.id === id ? { ...item, is_read: read } : item)),
-            })),
-          });
+        queryClient.setQueryData<ItemsInfiniteData>(key, {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) => (item.id === id ? { ...item, is_read: read } : item)),
+          })),
+        });
       });
       return { previous };
     },
@@ -101,20 +101,20 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
   });
 
   const updateFavorite = useMutation({
-    mutationFn: ({ id, favorite }: { id: number; favorite: boolean }) =>
+    mutationFn: ({ id, favorite }: { id: string; favorite: boolean }) =>
       api.updateItemFavorite(id, { favorite }),
     onMutate: async ({ id, favorite }) => {
       await queryClient.cancelQueries({ queryKey: ["items"] });
       const previous = queryClient.getQueriesData<ItemsInfiniteData>({ queryKey: ["items"] }) as ItemsQueryTuple[];
       previous.forEach(([key, data]) => {
         if (!data) return;
-          queryClient.setQueryData<ItemsInfiniteData>(key, {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) => (item.id === id ? { ...item, is_favorite: favorite } : item)),
-            })),
-          });
+        queryClient.setQueryData<ItemsInfiniteData>(key, {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) => (item.id === id ? { ...item, is_favorite: favorite } : item)),
+          })),
+        });
       });
       return { previous };
     },
@@ -128,20 +128,20 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
   });
 
   const batchRead = useMutation({
-    mutationFn: ({ itemIds, read }: { itemIds: number[]; read: boolean }) =>
+    mutationFn: ({ itemIds, read }: { itemIds: string[]; read: boolean }) =>
       api.batchRead({ item_ids: itemIds, read }),
     onMutate: async ({ itemIds, read }) => {
       await queryClient.cancelQueries({ queryKey: ["items"] });
       const previous = queryClient.getQueriesData<ItemsInfiniteData>({ queryKey: ["items"] }) as ItemsQueryTuple[];
       previous.forEach(([key, data]) => {
         if (!data) return;
-          queryClient.setQueryData<ItemsInfiniteData>(key, {
-            ...data,
-            pages: data.pages.map((page) => ({
-              ...page,
-              items: page.items.map((item) => (itemIds.includes(item.id) ? { ...item, is_read: read } : item)),
-            })),
-          });
+        queryClient.setQueryData<ItemsInfiniteData>(key, {
+          ...data,
+          pages: data.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) => (itemIds.includes(item.id) ? { ...item, is_read: read } : item)),
+          })),
+        });
       });
       return { previous };
     },

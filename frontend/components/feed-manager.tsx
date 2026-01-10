@@ -24,13 +24,13 @@ import type { Category, Feed } from "@/lib/types";
 import { categorySchema, feedSchema, type CategoryFormValues, type FeedFormValues } from "@/lib/validators";
 
 type FeedManagerProps = {
-  selectedCategory: number | null;
-  selectedFeed: number | null;
-  onSelectCategory: (id: number | null) => void;
-  onSelectFeed: (id: number | null) => void;
+  selectedCategory: string | null;
+  selectedFeed: string | null;
+  onSelectCategory: (id: string | null) => void;
+  onSelectFeed: (id: string | null) => void;
 };
 
-function FeedUnreadCount({ feedId }: { feedId: number }) {
+function FeedUnreadCount({ feedId }: { feedId: string }) {
   const { data } = useQuery({
     queryKey: queryKeys.unreadCount({ feedId }),
     queryFn: () => api.unreadCount({ feed_id: feedId }),
@@ -55,7 +55,7 @@ export function FeedManager({
   const { toast } = useToast();
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [feedDialogOpen, setFeedDialogOpen] = useState(false);
-  const [editFeedId, setEditFeedId] = useState<number | null>(null);
+  const [editFeedId, setEditFeedId] = useState<string | null>(null);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: queryKeys.categories,
@@ -77,7 +77,7 @@ export function FeedManager({
     defaultValues: { name: "", url: "", category_id: selectedCategory ?? null },
   });
 
-  const editFeedForm = useForm<{ name: string; category_id: number | null }>({
+  const editFeedForm = useForm<{ name: string; category_id: string | null }>({
     defaultValues: { name: "", category_id: null },
   });
 
@@ -113,7 +113,7 @@ export function FeedManager({
       await queryClient.cancelQueries({ queryKey: queryKeys.categories });
       const previous = queryClient.getQueryData<Category[]>(queryKeys.categories) ?? [];
       const optimistic: Category = {
-        id: Date.now(),
+        id: String(Date.now()),
         name: payload.name,
         created_at: new Date().toISOString(),
       };
@@ -164,7 +164,7 @@ export function FeedManager({
       await queryClient.cancelQueries({ queryKey: queryKeys.feeds(selectedCategory) });
       const previous = queryClient.getQueryData<Feed[]>(queryKeys.feeds(selectedCategory)) ?? [];
       const optimistic: Feed = {
-        id: Date.now(),
+        id: String(Date.now()),
         name: payload.name,
         url: payload.url,
         category_id: payload.category_id ?? null,
@@ -192,7 +192,7 @@ export function FeedManager({
   });
 
   const updateFeed = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: { name?: string; category_id?: number | null } }) =>
+    mutationFn: ({ id, payload }: { id: string; payload: { name?: string; category_id?: string | null } }) =>
       api.updateFeed(id, payload),
     onMutate: async ({ id, payload }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.feeds() });
@@ -207,7 +207,7 @@ export function FeedManager({
                   ...feed,
                   name: payload.name ?? feed.name,
                   category_id:
-                    payload.category_id === 0
+                    payload.category_id === null || payload.category_id === ""
                       ? null
                       : payload.category_id ?? feed.category_id,
                 }
@@ -404,7 +404,7 @@ export function FeedManager({
                     onChange={(event) =>
                       feedForm.setValue(
                         "category_id",
-                        event.target.value ? Number(event.target.value) : null
+                        event.target.value ? event.target.value : null
                       )
                     }
                   >
@@ -472,7 +472,7 @@ export function FeedManager({
                               id: feed.id,
                               payload: {
                                 name: values.name,
-                                category_id: values.category_id ?? 0,
+                                category_id: values.category_id ?? "",
                               },
                             })
                           )}
@@ -499,7 +499,7 @@ export function FeedManager({
                               onChange={(event) =>
                                 editFeedForm.setValue(
                                   "category_id",
-                                  event.target.value ? Number(event.target.value) : null
+                                  event.target.value ? event.target.value : null
                                 )
                               }
                             >
