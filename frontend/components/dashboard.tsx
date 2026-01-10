@@ -28,16 +28,16 @@ export function Dashboard() {
       />
       <section className="space-y-6">
         <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-4">
             <SearchBar value={search} onChange={setSearch} />
             <UnreadCount categoryId={selectedCategory} feedId={selectedFeed} />
+            <FiltersBar
+              unreadOnly={unreadOnly}
+              favoriteOnly={favoriteOnly}
+              onUnreadChange={setUnreadOnly}
+              onFavoriteChange={setFavoriteOnly}
+            />
           </div>
-          <FiltersBar
-            unreadOnly={unreadOnly}
-            favoriteOnly={favoriteOnly}
-            onUnreadChange={setUnreadOnly}
-            onFavoriteChange={setFavoriteOnly}
-          />
         </div>
         <ItemList
           categoryId={selectedCategory}

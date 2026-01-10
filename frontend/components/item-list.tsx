@@ -206,8 +206,8 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
                     <div className="py-3">
                       <ItemCard
                         item={item}
-                        onToggleRead={(currentItem) =>
-                          updateRead.mutate({ id: currentItem.id, read: !currentItem.is_read })
+                        onMarkRead={(currentItem) =>
+                          updateRead.mutate({ id: currentItem.id, read: true })
                         }
                         onToggleFavorite={(currentItem) =>
                           updateFavorite.mutate({
