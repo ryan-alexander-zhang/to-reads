@@ -275,49 +275,44 @@ export function FeedManager({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">分类列表</h3>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onSelectCategory(null)}>
-              全部
-            </Button>
-            <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                  aria-label="添加分类"
-                >
-                  <FolderPlus className="h-[18px] w-[18px]" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>添加分类</DialogTitle>
-                  <DialogDescription>请输入新的分类名称。</DialogDescription>
-                </DialogHeader>
-                <form
-                  onSubmit={categoryForm.handleSubmit((values) => createCategory.mutate(values))}
-                  className="space-y-4"
-                >
-                  <div className="space-y-2">
-                    <Input
-                      id="category-name"
-                      placeholder="例如：技术 / 设计"
-                      {...categoryForm.register("name")}
-                    />
-                    {categoryForm.formState.errors.name ? (
-                      <p className="text-xs text-destructive">{categoryForm.formState.errors.name.message}</p>
-                    ) : null}
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" size="sm" disabled={createCategory.isPending}>
-                      确认添加
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                aria-label="添加分类"
+              >
+                <FolderPlus className="h-[18px] w-[18px]" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>添加分类</DialogTitle>
+                <DialogDescription>请输入新的分类名称。</DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={categoryForm.handleSubmit((values) => createCategory.mutate(values))}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <Input
+                    id="category-name"
+                    placeholder="例如：技术 / 设计"
+                    {...categoryForm.register("name")}
+                  />
+                  {categoryForm.formState.errors.name ? (
+                    <p className="text-xs text-destructive">{categoryForm.formState.errors.name.message}</p>
+                  ) : null}
+                </div>
+                <DialogFooter>
+                  <Button type="submit" size="sm" disabled={createCategory.isPending}>
+                    确认添加
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
         <div className="space-y-2">
           {categoriesLoading ? (
@@ -332,17 +327,20 @@ export function FeedManager({
                   className={`text-left text-sm ${
                     selectedCategory === category.id ? "font-semibold text-primary" : ""
                   }`}
-                  onClick={() => onSelectCategory(category.id)}
+                  onClick={() =>
+                    onSelectCategory(selectedCategory === category.id ? null : category.id)
+                  }
                 >
                   {category.name}
                 </button>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                   onClick={() => deleteCategory.mutate(category.id)}
                   aria-label={`删除分类 ${category.name}`}
                 >
-                  删除
+                  <Trash className="h-[18px] w-[18px]" />
                 </Button>
               </div>
             ))

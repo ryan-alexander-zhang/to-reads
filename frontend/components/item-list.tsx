@@ -59,7 +59,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
   const rowVirtualizer = useVirtualizer({
     count: itemsQuery.hasNextPage ? allItems.length + 1 : allItems.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 220,
+    estimateSize: () => 160,
     overscan: 6,
   });
 
@@ -195,7 +195,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
                   {isLoaderRow ? (
-                    <div className="py-3">
+                    <div className="py-2">
                       {itemsQuery.hasNextPage ? (
                         <Skeleton className="h-32 w-full" />
                       ) : (
@@ -203,7 +203,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
                       )}
                     </div>
                   ) : (
-                    <div className="py-3">
+                    <div className="py-2">
                       <ItemCard
                         item={item}
                         onMarkRead={(currentItem) =>
