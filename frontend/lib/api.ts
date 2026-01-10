@@ -1,4 +1,4 @@
-import type { Category, Feed, ItemsResponse } from "@/lib/types";
+import type { Category, Feed, ItemsResponse, TransferPayload } from "@/lib/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 
@@ -54,6 +54,12 @@ export const api = {
   deleteFeed: (id: string) => request<{ status: string }>(`/feeds/${id}`, { method: "DELETE" }),
   refreshFeed: (id: string) =>
     request<{ status: string }>(`/feeds/${id}/refresh`, { method: "POST" }),
+  exportData: () => request<TransferPayload>("/export"),
+  importData: (payload: TransferPayload) =>
+    request<{ categories: number; feeds: number }>("/import", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   listItems: (params: {
     page: number;
     page_size: number;

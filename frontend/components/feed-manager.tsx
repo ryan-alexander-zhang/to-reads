@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderPlus, Plus, RefreshCw, SquarePen, Trash } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Download, FolderPlus, Plus, RefreshCw, SquarePen, Trash, Upload } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import type { Category, Feed } from "@/lib/types";
+import type { Category, Feed, TransferPayload } from "@/lib/types";
 import { categorySchema, feedSchema, type CategoryFormValues, type FeedFormValues } from "@/lib/validators";
 
 type FeedManagerProps = {
@@ -56,6 +56,8 @@ export function FeedManager({
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [feedDialogOpen, setFeedDialogOpen] = useState(false);
   const [editFeedId, setEditFeedId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: queryKeys.categories,
@@ -274,11 +276,82 @@ export function FeedManager({
     },
   });
 
+  const importData = useMutation({
+    mutationFn: api.importData,
+    onError: () => {
+      toast({ title: "Failed to import data" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
+      toast({ title: "Import completed" });
+    },
+  });
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const data = await api.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `to-reads-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export ready" });
+    } catch (error) {
+      toast({ title: "Failed to export data" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Partial<TransferPayload>;
+      if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.feeds)) {
+        throw new Error("Invalid import payload");
+      }
+      await importData.mutateAsync(parsed as TransferPayload);
+    } catch (error) {
+      toast({ title: "Failed to import data" });
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   return (
     <aside className="space-y-6 rounded-lg border border-border bg-card p-4">
       <div>
         <h2 className="text-base font-semibold">Subscription manager</h2>
         <p className="text-sm text-muted-foreground">Add, remove, and categorize RSS sites</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={handleImport}
+          />
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importData.isPending}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Import
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-3">

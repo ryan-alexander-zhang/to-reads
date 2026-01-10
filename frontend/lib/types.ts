@@ -36,3 +36,21 @@ export type ItemsResponse = {
   page: number;
   page_size: number;
 };
+
+export type TransferCategory = {
+  id: string;
+  name: string;
+};
+
+export type TransferFeed = {
+  id: string;
+  name: string;
+  url: string;
+  category_id: string | null;
+  category_name: string | null;
+};
+
+export type TransferPayload = {
+  categories: TransferCategory[];
+  feeds: TransferFeed[];
+};
