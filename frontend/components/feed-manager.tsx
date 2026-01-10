@@ -2,12 +2,23 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import AddAdOutlineRoundedIcon from "@/components/icons/add-ad-outline-rounded-icon";
+import AddIcon from "@/components/icons/add-icon";
 import DeleteForeverOutlineRoundedIcon from "@/components/icons/delete-forever-outline-rounded-icon";
 import RefreshRoundedIcon from "@/components/icons/refresh-rounded-icon";
 import { api } from "@/lib/api";
@@ -30,6 +41,8 @@ export function FeedManager({
 }: FeedManagerProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [feedDialogOpen, setFeedDialogOpen] = useState(false);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: queryKeys.categories,
@@ -55,6 +68,18 @@ export function FeedManager({
     feedForm.setValue("category_id", selectedCategory ?? null);
   }, [selectedCategory, feedForm]);
 
+  useEffect(() => {
+    if (categoryDialogOpen) {
+      categoryForm.reset({ name: "" });
+    }
+  }, [categoryDialogOpen, categoryForm]);
+
+  useEffect(() => {
+    if (feedDialogOpen) {
+      feedForm.reset({ name: "", url: "", category_id: selectedCategory ?? null });
+    }
+  }, [feedDialogOpen, feedForm, selectedCategory]);
+
   const createCategory = useMutation({
     mutationFn: api.createCategory,
     onMutate: async (payload) => {
@@ -78,6 +103,7 @@ export function FeedManager({
       queryClient.invalidateQueries({ queryKey: queryKeys.categories });
       toast({ title: "分类已添加" });
       categoryForm.reset({ name: "" });
+      setCategoryDialogOpen(false);
     },
   });
 
@@ -134,6 +160,7 @@ export function FeedManager({
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
       toast({ title: "站点已添加" });
       feedForm.reset({ name: "", url: "", category_id: selectedCategory ?? null });
+      setFeedDialogOpen(false);
     },
   });
 
@@ -217,27 +244,52 @@ export function FeedManager({
         <p className="text-sm text-muted-foreground">添加、删除和分类 RSS 站点</p>
       </div>
 
-      <form
-        onSubmit={categoryForm.handleSubmit((values) => createCategory.mutate(values))}
-        className="space-y-3"
-      >
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="category-name">
-            新建分类
-          </label>
-          <Input id="category-name" placeholder="例如：技术 / 设计" {...categoryForm.register("name")} />
-        </div>
-        <Button type="submit" size="sm" disabled={createCategory.isPending}>
-          添加分类
-        </Button>
-      </form>
-
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">分类列表</h3>
-          <Button variant="ghost" size="sm" onClick={() => onSelectCategory(null)}>
-            全部
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => onSelectCategory(null)}>
+              全部
+            </Button>
+            <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                  aria-label="添加分类"
+                >
+                  <AddAdOutlineRoundedIcon size={18} color="currentColor" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>添加分类</DialogTitle>
+                  <DialogDescription>请输入新的分类名称。</DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={categoryForm.handleSubmit((values) => createCategory.mutate(values))}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Input
+                      id="category-name"
+                      placeholder="例如：技术 / 设计"
+                      {...categoryForm.register("name")}
+                    />
+                    {categoryForm.formState.errors.name ? (
+                      <p className="text-xs text-destructive">{categoryForm.formState.errors.name.message}</p>
+                    ) : null}
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" size="sm" disabled={createCategory.isPending}>
+                      确认添加
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
         <div className="space-y-2">
           {categoriesLoading ? (
@@ -270,52 +322,83 @@ export function FeedManager({
         </div>
       </div>
 
-      <form
-        onSubmit={feedForm.handleSubmit((values) => createFeed.mutate(values))}
-        className="space-y-3"
-      >
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="feed-name">
-            站点名称
-          </label>
-          <Input id="feed-name" placeholder="站点名称" {...feedForm.register("name")} />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="feed-url">
-            Feed URL
-          </label>
-          <Input id="feed-url" placeholder="https://example.com/feed.xml" {...feedForm.register("url")} />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="feed-category">
-            归属分类
-          </label>
-          <select
-            id="feed-category"
-            className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-            value={feedForm.watch("category_id") ?? ""}
-            onChange={(event) =>
-              feedForm.setValue(
-                "category_id",
-                event.target.value ? Number(event.target.value) : null
-              )
-            }
-          >
-            <option value="">未分类</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Button type="submit" size="sm" disabled={createFeed.isPending}>
-          添加站点
-        </Button>
-      </form>
-
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold">站点列表</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">站点列表</h3>
+          <Dialog open={feedDialogOpen} onOpenChange={setFeedDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                aria-label="添加站点"
+              >
+                <AddIcon size={18} color="currentColor" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>添加站点</DialogTitle>
+                <DialogDescription>填写站点信息并选择分类。</DialogDescription>
+              </DialogHeader>
+              <form
+                onSubmit={feedForm.handleSubmit((values) => createFeed.mutate(values))}
+                className="space-y-4"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="feed-name">
+                    站点名称
+                  </label>
+                  <Input id="feed-name" placeholder="站点名称" {...feedForm.register("name")} />
+                  {feedForm.formState.errors.name ? (
+                    <p className="text-xs text-destructive">{feedForm.formState.errors.name.message}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="feed-url">
+                    Feed URL
+                  </label>
+                  <Input
+                    id="feed-url"
+                    placeholder="https://example.com/feed.xml"
+                    {...feedForm.register("url")}
+                  />
+                  {feedForm.formState.errors.url ? (
+                    <p className="text-xs text-destructive">{feedForm.formState.errors.url.message}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="feed-category">
+                    归属分类
+                  </label>
+                  <select
+                    id="feed-category"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                    value={feedForm.watch("category_id") ?? ""}
+                    onChange={(event) =>
+                      feedForm.setValue(
+                        "category_id",
+                        event.target.value ? Number(event.target.value) : null
+                      )
+                    }
+                  >
+                    <option value="">未分类</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" size="sm" disabled={createFeed.isPending}>
+                    确认添加
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
         {feedsLoading ? (
           <p className="text-sm text-muted-foreground">加载中...</p>
         ) : feeds.length === 0 ? (
