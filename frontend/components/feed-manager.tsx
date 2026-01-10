@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderPlus, RefreshCw, SquarePen, Trash } from "lucide-react";
+import { FolderPlus, Plus, RefreshCw, SquarePen, Trash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import AddIcon from "@/components/icons/add-icon";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { Category, Feed } from "@/lib/types";
@@ -362,7 +361,7 @@ export function FeedManager({
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 aria-label="添加站点"
               >
-                <AddIcon size={18} color="currentColor" />
+                <Plus className="h-[18px] w-[18px]" />
               </Button>
             </DialogTrigger>
             <DialogContent>
