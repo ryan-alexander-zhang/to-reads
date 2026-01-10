@@ -8,8 +8,6 @@ pnpm-debug.log*
 .DS_Store
 coverage
 .prisma
-package-lock.json
 next-env.d.ts
 backend/go.sum
 frontend/node_modules/
-frontend/package-lock.json
