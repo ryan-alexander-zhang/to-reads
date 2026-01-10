@@ -8,6 +8,8 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import DeleteForeverOutlineRoundedIcon from "@/components/icons/delete-forever-outline-rounded-icon";
+import RefreshRoundedIcon from "@/components/icons/refresh-rounded-icon";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { Category, Feed } from "@/lib/types";
@@ -195,6 +197,19 @@ export function FeedManager({
     },
   });
 
+  const refreshFeed = useMutation({
+    mutationFn: api.refreshFeed,
+    onError: () => {
+      toast({ title: "站点刷新失败" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      toast({ title: "站点已刷新" });
+    },
+  });
+
   return (
     <aside className="space-y-6 rounded-lg border border-border bg-card p-4">
       <div>
@@ -319,14 +334,28 @@ export function FeedManager({
                   >
                     {feed.name}
                   </button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteFeed.mutate(feed.id)}
-                    aria-label={`删除站点 ${feed.name}`}
-                  >
-                    删除
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => refreshFeed.mutate(feed.id)}
+                      aria-label={`刷新站点 ${feed.name}`}
+                      disabled={refreshFeed.isPending && refreshFeed.variables === feed.id}
+                    >
+                      <RefreshRoundedIcon size={18} color="currentColor" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => deleteFeed.mutate(feed.id)}
+                      aria-label={`删除站点 ${feed.name}`}
+                      disabled={deleteFeed.isPending && deleteFeed.variables === feed.id}
+                    >
+                      <DeleteForeverOutlineRoundedIcon size={18} color="currentColor" />
+                    </Button>
+                  </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{feed.url}</p>
                 <div className="mt-2 flex items-center gap-2">
