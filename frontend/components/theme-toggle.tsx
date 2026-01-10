@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -15,7 +16,17 @@ export function ThemeToggle() {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label="切换主题"
     >
-      {isDark ? "浅色模式" : "深色模式"}
+      {isDark ? (
+        <>
+          <Sun className="mr-2 h-4 w-4" />
+          浅色模式
+        </>
+      ) : (
+        <>
+          <Moon className="mr-2 h-4 w-4" />
+          深色模式
+        </>
+      )}
     </Button>
   );
 }
