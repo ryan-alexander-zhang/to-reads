@@ -40,7 +40,7 @@ function FeedUnreadCount({ feedId }: { feedId: string }) {
 
   return (
     <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
-      Unread {data.unread}
+      {data.unread}
     </span>
   );
 }
