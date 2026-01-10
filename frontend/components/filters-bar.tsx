@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import FilterHorizontalIcon from "@/components/icons/filter-horizontal-icon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -33,16 +34,18 @@ export function FiltersBar({
   }, [open]);
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <div className="relative" ref={menuRef}>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="h-9 w-9 p-0"
           onClick={() => setOpen((prev) => !prev)}
           aria-expanded={open}
           aria-haspopup="menu"
+          aria-label="筛选"
         >
-          筛选
+          <FilterHorizontalIcon size={18} color="currentColor" />
         </Button>
         {open ? (
           <div
