@@ -92,7 +92,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
     },
     onError: (_error, _payload, context) => {
       context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast({ title: "更新已读状态失败" });
+      toast({ title: "Failed to update read status" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount({ categoryId, feedId }) });
@@ -120,7 +120,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
     },
     onError: (_error, _payload, context) => {
       context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast({ title: "更新收藏状态失败" });
+      toast({ title: "Failed to update favorite status" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
@@ -147,26 +147,26 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
     },
     onError: (_error, _payload, context) => {
       context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast({ title: "批量更新失败" });
+      toast({ title: "Batch update failed" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.unreadCount({ categoryId, feedId }) });
       queryClient.invalidateQueries({ queryKey: ["items"] });
-      toast({ title: "已批量更新" });
+      toast({ title: "Batch updated" });
     },
   });
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">文章列表</h2>
+        <h2 className="text-base font-semibold">Article list</h2>
         <Button
           variant="outline"
           size="sm"
           onClick={() => batchRead.mutate({ itemIds: allItems.map((item) => item.id), read: true })}
           disabled={allItems.length === 0}
         >
-          当前列表全部已读
+          All items in this list are read
         </Button>
       </div>
 
@@ -178,7 +178,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
         </div>
       ) : allItems.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          暂无文章，请添加订阅或调整筛选条件。
+          No articles yet. Add subscriptions or adjust filters.
         </div>
       ) : (
         <div
@@ -202,7 +202,7 @@ export function ItemList({ categoryId, feedId, search, unreadOnly, favoriteOnly 
                       {itemsQuery.hasNextPage ? (
                         <Skeleton className="h-32 w-full" />
                       ) : (
-                        <p className="text-center text-xs text-muted-foreground">没有更多内容了</p>
+                        <p className="text-center text-xs text-muted-foreground">No more content</p>
                       )}
                     </div>
                   ) : (

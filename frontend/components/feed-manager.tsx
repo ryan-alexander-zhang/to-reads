@@ -40,7 +40,7 @@ function FeedUnreadCount({ feedId }: { feedId: number }) {
 
   return (
     <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
-      未读 {data.unread}
+      Unread {data.unread}
     </span>
   );
 }
@@ -124,11 +124,11 @@ export function FeedManager({
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.categories, context.previous);
       }
-      toast({ title: "分类创建失败" });
+      toast({ title: "Failed to create category" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories });
-      toast({ title: "分类已添加" });
+      toast({ title: "Category added" });
       categoryForm.reset({ name: "" });
       setCategoryDialogOpen(false);
     },
@@ -149,12 +149,12 @@ export function FeedManager({
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.categories, context.previous);
       }
-      toast({ title: "分类删除失败" });
+      toast({ title: "Failed to delete category" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories });
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
-      toast({ title: "分类已删除" });
+      toast({ title: "Category deleted" });
     },
   });
 
@@ -181,11 +181,11 @@ export function FeedManager({
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.feeds(selectedCategory), context.previous);
       }
-      toast({ title: "站点添加失败" });
+      toast({ title: "Failed to add site" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
-      toast({ title: "站点已添加" });
+      toast({ title: "Site added" });
       feedForm.reset({ name: "", url: "", category_id: selectedCategory ?? null });
       setFeedDialogOpen(false);
     },
@@ -219,11 +219,11 @@ export function FeedManager({
     },
     onError: (_error, _payload, context) => {
       context?.previousAll.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast({ title: "站点更新失败" });
+      toast({ title: "Failed to update site" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
-      toast({ title: "站点已更新" });
+      toast({ title: "Site updated" });
       setEditFeedId(null);
     },
   });
@@ -244,52 +244,52 @@ export function FeedManager({
     },
     onError: (_error, _payload, context) => {
       context?.previousAll.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast({ title: "站点删除失败" });
+      toast({ title: "Failed to delete site" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
-      toast({ title: "站点已删除" });
+      toast({ title: "Site deleted" });
     },
   });
 
   const refreshFeed = useMutation({
     mutationFn: api.refreshFeed,
     onError: () => {
-      toast({ title: "站点刷新失败" });
+      toast({ title: "Failed to refresh site" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds() });
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["unread-count"] });
-      toast({ title: "站点已刷新" });
+      toast({ title: "Site refreshed" });
     },
   });
 
   return (
     <aside className="space-y-6 rounded-lg border border-border bg-card p-4">
       <div>
-        <h2 className="text-base font-semibold">订阅源管理</h2>
-        <p className="text-sm text-muted-foreground">添加、删除和分类 RSS 站点</p>
+        <h2 className="text-base font-semibold">Subscription manager</h2>
+        <p className="text-sm text-muted-foreground">Add, remove, and categorize RSS sites</p>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">分类列表</h3>
+          <h3 className="text-sm font-semibold">Category list</h3>
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                aria-label="添加分类"
+                aria-label="Add category"
               >
                 <FolderPlus className="h-[18px] w-[18px]" />
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>添加分类</DialogTitle>
-                <DialogDescription>请输入新的分类名称。</DialogDescription>
+                <DialogTitle>Add category</DialogTitle>
+                <DialogDescription>Enter a new category name.</DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={categoryForm.handleSubmit((values) => createCategory.mutate(values))}
@@ -298,7 +298,7 @@ export function FeedManager({
                 <div className="space-y-2">
                   <Input
                     id="category-name"
-                    placeholder="例如：技术 / 设计"
+                    placeholder="e.g. Technology / Design"
                     {...categoryForm.register("name")}
                   />
                   {categoryForm.formState.errors.name ? (
@@ -307,7 +307,7 @@ export function FeedManager({
                 </div>
                 <DialogFooter>
                   <Button type="submit" size="sm" disabled={createCategory.isPending}>
-                    确认添加
+                    Add
                   </Button>
                 </DialogFooter>
               </form>
@@ -316,9 +316,9 @@ export function FeedManager({
         </div>
         <div className="space-y-2">
           {categoriesLoading ? (
-            <p className="text-sm text-muted-foreground">加载中...</p>
+            <p className="text-sm text-muted-foreground">Loading...</p>
           ) : categories.length === 0 ? (
-            <p className="text-sm text-muted-foreground">暂无分类</p>
+            <p className="text-sm text-muted-foreground">No categories</p>
           ) : (
             categories.map((category) => (
               <div key={category.id} className="flex items-center justify-between gap-2">
@@ -338,7 +338,7 @@ export function FeedManager({
                   size="sm"
                   className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                   onClick={() => deleteCategory.mutate(category.id)}
-                  aria-label={`删除分类 ${category.name}`}
+                  aria-label={`Delete category ${category.name}`}
                 >
                   <Trash className="h-[18px] w-[18px]" />
                 </Button>
@@ -350,22 +350,22 @@ export function FeedManager({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">站点列表</h3>
+          <h3 className="text-sm font-semibold">Site list</h3>
           <Dialog open={feedDialogOpen} onOpenChange={setFeedDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                aria-label="添加站点"
+                aria-label="Add site"
               >
                 <Plus className="h-[18px] w-[18px]" />
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>添加站点</DialogTitle>
-                <DialogDescription>填写站点信息并选择分类。</DialogDescription>
+                <DialogTitle>Add site</DialogTitle>
+                <DialogDescription>Enter site details and choose a category.</DialogDescription>
               </DialogHeader>
               <form
                 onSubmit={feedForm.handleSubmit((values) => createFeed.mutate(values))}
@@ -373,9 +373,9 @@ export function FeedManager({
               >
                 <div className="space-y-2">
                   <label className="text-sm font-medium" htmlFor="feed-name">
-                    站点名称
+                    Site name
                   </label>
-                  <Input id="feed-name" placeholder="站点名称" {...feedForm.register("name")} />
+                  <Input id="feed-name" placeholder="Site name" {...feedForm.register("name")} />
                   {feedForm.formState.errors.name ? (
                     <p className="text-xs text-destructive">{feedForm.formState.errors.name.message}</p>
                   ) : null}
@@ -395,7 +395,7 @@ export function FeedManager({
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium" htmlFor="feed-category">
-                    归属分类
+                    Category
                   </label>
                   <select
                     id="feed-category"
@@ -408,7 +408,7 @@ export function FeedManager({
                       )
                     }
                   >
-                    <option value="">未分类</option>
+                    <option value="">Uncategorized</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}
@@ -418,7 +418,7 @@ export function FeedManager({
                 </div>
                 <DialogFooter>
                   <Button type="submit" size="sm" disabled={createFeed.isPending}>
-                    确认添加
+                    Add
                   </Button>
                 </DialogFooter>
               </form>
@@ -426,9 +426,9 @@ export function FeedManager({
           </Dialog>
         </div>
         {feedsLoading ? (
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground">Loading...</p>
         ) : feeds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">暂无站点</p>
+          <p className="text-sm text-muted-foreground">No sites</p>
         ) : (
           <ul className="space-y-3">
             {feeds.map((feed) => (
@@ -456,15 +456,15 @@ export function FeedManager({
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                          aria-label={`编辑站点 ${feed.name}`}
+                          aria-label={`Edit site ${feed.name}`}
                         >
                           <SquarePen className="h-[18px] w-[18px]" />
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>编辑站点</DialogTitle>
-                          <DialogDescription>更新站点名称和分类。</DialogDescription>
+                          <DialogTitle>Edit site</DialogTitle>
+                          <DialogDescription>Update the site name and category.</DialogDescription>
                         </DialogHeader>
                         <form
                           onSubmit={editFeedForm.handleSubmit((values) =>
@@ -480,17 +480,17 @@ export function FeedManager({
                         >
                           <div className="space-y-2">
                             <label className="text-sm font-medium" htmlFor={`edit-feed-name-${feed.id}`}>
-                              站点名称
+                              Site name
                             </label>
                             <Input
                               id={`edit-feed-name-${feed.id}`}
-                              placeholder="站点名称"
+                              placeholder="Site name"
                               {...editFeedForm.register("name", { required: true })}
                             />
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-medium" htmlFor={`edit-feed-category-${feed.id}`}>
-                              归属分类
+                              Category
                             </label>
                             <select
                               id={`edit-feed-category-${feed.id}`}
@@ -503,7 +503,7 @@ export function FeedManager({
                                 )
                               }
                             >
-                              <option value="">未分类</option>
+                              <option value="">Uncategorized</option>
                               {categories.map((category) => (
                                 <option key={category.id} value={category.id}>
                                   {category.name}
@@ -513,13 +513,13 @@ export function FeedManager({
                           </div>
                           <div className="space-y-2">
                             <label className="text-sm font-medium" htmlFor={`edit-feed-url-${feed.id}`}>
-                              站点地址
+                              Site URL
                             </label>
                             <Input id={`edit-feed-url-${feed.id}`} value={feed.url} disabled />
                           </div>
                           <DialogFooter>
                             <Button type="submit" size="sm" disabled={updateFeed.isPending}>
-                              保存
+                              Save
                             </Button>
                           </DialogFooter>
                         </form>
@@ -530,7 +530,7 @@ export function FeedManager({
                       size="sm"
                       className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                       onClick={() => refreshFeed.mutate(feed.id)}
-                      aria-label={`刷新站点 ${feed.name}`}
+                      aria-label={`Refresh site ${feed.name}`}
                       disabled={refreshFeed.isPending && refreshFeed.variables === feed.id}
                     >
                       <RefreshCw className="h-[18px] w-[18px]" />
@@ -540,7 +540,7 @@ export function FeedManager({
                       size="sm"
                       className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                       onClick={() => deleteFeed.mutate(feed.id)}
-                      aria-label={`删除站点 ${feed.name}`}
+                      aria-label={`Delete site ${feed.name}`}
                       disabled={deleteFeed.isPending && deleteFeed.variables === feed.id}
                     >
                       <Trash className="h-[18px] w-[18px]" />

@@ -25,11 +25,11 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
   return (
     <div className="w-full max-w-md">
       <label className="sr-only" htmlFor="search-items">
-        搜索文章
+        Search articles
       </label>
       <Input
         id="search-items"
-        placeholder="搜索标题或摘要..."
+        placeholder="Search titles or summaries..."
         value={inputValue}
         onChange={(event) => setInputValue(event.target.value)}
       />

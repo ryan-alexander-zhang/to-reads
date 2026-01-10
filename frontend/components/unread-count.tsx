@@ -19,7 +19,7 @@ export function UnreadCount({ categoryId, feedId }: UnreadCountProps) {
 
   return (
     <Badge variant="outline" className="border-primary text-primary">
-      未读 {data?.unread ?? 0}
+      Unread {data?.unread ?? 0}
     </Badge>
   );
 }

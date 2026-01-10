@@ -7,7 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata: Metadata = {
   title: "To-Reads RSS",
-  description: "轻量级 RSS 阅读器",
+  description: "Lightweight RSS reader",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
                 <div>
                   <h1 className="text-xl font-semibold">To-Reads</h1>
-                  <p className="text-sm text-muted-foreground">订阅与阅读管理中心</p>
+                  <p className="text-sm text-muted-foreground">Subscription and reading hub</p>
                 </div>
                 <ThemeToggle />
               </div>
